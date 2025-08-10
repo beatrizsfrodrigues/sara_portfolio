@@ -6,6 +6,10 @@
   color: white;
 }
 
+#navMobile {
+  background-color: rgb(27, 24, 30);
+}
+
 #coverDiv {
   width: 100vw;
   height: 100vh;
@@ -42,4 +46,24 @@ h1 {
   font-weight: bold;
   font-size: 32px;
   margin: 16px 0px;
+}
+
+.btnMenu {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+  grid-auto-rows: auto;
+}
+
+@media (max-width: 576px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
 }

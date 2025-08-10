@@ -433,14 +433,7 @@ export default function Gallery() {
             </div>
           )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(400px, 1fr))",
-              gap: "16px",
-              gridAutoRows: "auto",
-            }}
-          >
+          <div className="grid">
             {loading
               ? // Render skeleton placeholders while loading
                 Array.from({ length: skeletonCount }).map((_, index) => (

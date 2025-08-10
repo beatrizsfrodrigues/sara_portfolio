@@ -45,29 +45,24 @@ export default function WithSubnavigation() {
         boxSizing="border-box"
       >
         <Flex flex="0 0 auto" mr={1} display={{ base: "flex", md: "none" }}>
-          <Button
+          <button
             onClick={onToggle}
-            variant="ghost"
-            p={1}
             minW="auto"
-            h="30px"
-            w="30px"
-            size="xs"
             aria-label={"Toggle Navigation"}
+            className="btnMenu"
           >
-            {isOpen ? <HiX size={16} /> : <HiMenu size={18} />}
-          </Button>
+            {isOpen ? <HiX size={24} /> : <HiMenu size={23} />}
+          </button>
         </Flex>
-        <Flex flex="1 1 0" justify={{ base: "center", md: "start" }} minW="0">
-          <Text
-            textAlign={useBreakpointValue({ base: "center", md: "left" })}
-            fontFamily={"heading"}
-            fontSize="16px"
-          >
-            Logo
-          </Text>
+        <Flex
+          flex="1 1 0"
+          justify={{ base: "center", md: "start" }}
+          minW="0"
+          height="30px"
+        >
+          <img src={`/logo.png`} alt={`Logo`} />
 
-          <Flex display={{ base: "none", md: "flex" }} ml={10}>
+          <Flex align={"center"} display={{ base: "none", md: "flex" }} ml={10}>
             <DesktopNav />
           </Flex>
         </Flex>
@@ -92,8 +87,8 @@ export default function WithSubnavigation() {
       </Flex>
 
       {isOpen && (
-        <Box bg="gray.50" p={4} display={{ base: "block", md: "none" }}>
-          <MobileNav />
+        <Box display={{ base: "block", md: "none" }}>
+          <MobileNav onClose={() => setIsOpen(false)} />
         </Box>
       )}
     </Box>
@@ -177,19 +172,25 @@ const DesktopSubNav = ({ label, href, subLabel }) => {
   );
 };
 
-const MobileNav = () => {
+const MobileNav = ({ onClose }) => {
   return (
-    <Stack bg="white" p={4} display={{ md: "none" }}>
+    <Stack id="navMobile" p={8} display={{ md: "none" }}>
       {NAV_ITEMS.map((navItem) => (
-        <MobileNavItem key={navItem.label} {...navItem} />
+        <MobileNavItem key={navItem.label} {...navItem} onClose={onClose} />
       ))}
     </Stack>
   );
 };
 
-const MobileNavItem = ({ label, children, href }) => {
+const MobileNavItem = ({ label, children, href, onClose }) => {
   const [isOpen, setIsOpen] = useState(false);
   const onToggle = () => setIsOpen(!isOpen);
+
+  const handleNavClick = () => {
+    if (!children && onClose) {
+      onClose(); // Close mobile menu when clicking a nav item without children
+    }
+  };
 
   return (
     <Stack spacing={4} onClick={children && onToggle}>
@@ -202,6 +203,7 @@ const MobileNavItem = ({ label, children, href }) => {
         _hover={{
           textDecoration: "none",
         }}
+        onClick={handleNavClick}
       >
         <Text fontWeight={600}>{label}</Text>
         {children && (
@@ -218,7 +220,13 @@ const MobileNavItem = ({ label, children, href }) => {
       {isOpen && children && (
         <Stack mt={2} pl={4} align={"start"}>
           {children.map((child) => (
-            <Box as={Link} key={child.label} py={2} to={child.href}>
+            <Box
+              as={Link}
+              key={child.label}
+              py={2}
+              to={child.href}
+              onClick={onClose} // Close menu when clicking sub-nav item
+            >
               {child.label}
             </Box>
           ))}

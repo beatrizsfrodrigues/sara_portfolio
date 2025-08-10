@@ -208,14 +208,7 @@ export default function Sessions() {
   return (
     <div className="bodyDiv">
       <h1>Sessões</h1>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-          gap: "16px",
-          gridAutoRows: "auto",
-        }}
-      >
+      <div className="grid">
         {loading
           ? // Render skeleton placeholders while loading
             Array.from({ length: skeletonCount }).map((_, index) => (
@@ -269,8 +262,9 @@ export default function Sessions() {
             maxW="400px"
             bg="white"
             borderRadius="12px"
-            p="6"
+            p="2"
             boxShadow="xl"
+            margin={4}
           >
             <Dialog.Header>
               <Dialog.Title fontSize="xl" fontWeight="bold" color="gray.800">
