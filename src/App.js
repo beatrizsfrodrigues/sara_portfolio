@@ -17,7 +17,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/sessions" element={<Sessions />} />
-          <Route path="/gallery/:folderId" element={<Gallery />} />
+          <Route path="/gallery/:folderId/:folderName" element={<Gallery />} />
           <Route path="/about" element={<About />} />
           <Route path="/contacts" element={<Contacts />} />
         </Routes>
