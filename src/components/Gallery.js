@@ -52,6 +52,7 @@ class RequestQueue {
 }
 
 const imageQueue = new RequestQueue(3); // Limit to 3 concurrent image requests
+const downloadQueue = new RequestQueue(1); // Limit to 1 concurrent download to avoid rate limiting
 
 // Utility function to retry requests with exponential backoff
 const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
@@ -89,8 +90,9 @@ const ImageWithRetry = ({
     console.log(`Image failed to load: ${src}, retry count: ${retryCount}`);
 
     if (retryCount < maxRetries) {
-      // Wait before retrying
-      await delay(1000 * (retryCount + 1));
+      // Exponential backoff with longer delays to be more conservative
+      const delayTime = 2000 * Math.pow(2, retryCount); // 2s, 4s, 8s
+      await delay(delayTime);
       setRetryCount((prev) => prev + 1);
       // Force reload by adding timestamp
       setImageSrc(`${src}&t=${Date.now()}`);
@@ -161,12 +163,18 @@ export default function Gallery() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
 
+  // Download availability state
+  const [downloadEnabled, setDownloadEnabled] = useState(false);
+
   // Decode the folder name from URL
   const decodedFolderName = folderName
     ? decodeURIComponent(folderName)
     : "Gallery";
 
   const handleImageClick = (image) => {
+    // Prevent double clicks
+    if (isOpen) return;
+
     console.log("Image clicked:", image.name); // Debug log
     setSelectedImage(image);
     setIsOpen(true);
@@ -178,6 +186,120 @@ export default function Gallery() {
     setIsOpen(false);
     setSelectedImage(null);
     setModalImageLoading(true);
+  };
+
+  // Function to handle image download with rate limiting and fallbacks
+  const handleDownload = async (img, e) => {
+    e.stopPropagation(); // Prevent triggering the image modal
+
+    // Show loading state
+    const button = e.target;
+    const originalText = button.textContent;
+    button.textContent = "A transferir...";
+    button.disabled = true;
+
+    try {
+      // Use download queue to limit concurrent downloads
+      await downloadQueue.add(async () => {
+        // Try different download methods in order of preference
+        const downloadMethods = [
+          // Method 1: Try the API endpoint with authentication
+          async () => {
+            const response = await fetch(
+              `https://www.googleapis.com/drive/v3/files/${img.id}?alt=media&key=${apiKey}`
+            );
+            if (response.status === 429) throw new Error("Rate limited");
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response;
+          },
+          // Method 2: Try the thumbnail endpoint with high resolution
+          async () => {
+            await delay(1000); // Wait 1 second to avoid rate limiting
+            const response = await fetch(
+              `https://drive.google.com/thumbnail?sz=w2000&id=${img.id}`
+            );
+            if (response.status === 429) throw new Error("Rate limited");
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response;
+          },
+        ];
+
+        let response = null;
+        let lastError = null;
+
+        // Try each method
+        for (const method of downloadMethods) {
+          try {
+            response = await method();
+            break; // Success, exit the loop
+          } catch (error) {
+            lastError = error;
+            console.log(`Download method failed: ${error.message}`);
+            continue;
+          }
+        }
+
+        if (!response) {
+          throw lastError || new Error("All download methods failed");
+        }
+
+        // Get the image blob
+        const blob = await response.blob();
+
+        // Create a download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+
+        // Set filename - keep original extension or add .jpg
+        let filename = img.name;
+        if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          filename = filename.replace(/\.[^/.]+$/, "") + ".jpg";
+        }
+        link.download = filename;
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      });
+
+      // Success feedback
+      button.textContent = "✅ Transferido";
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error("Download failed:", error);
+
+      // Reset button state
+      button.textContent = originalText;
+      button.disabled = false;
+
+      // Check if it's a rate limiting issue
+      if (
+        error.message.includes("Rate limited") ||
+        error.message.includes("429")
+      ) {
+        // Fallback: open in Google Drive
+        const fallbackUrl = `https://drive.google.com/file/d/${img.id}/view`;
+        window.open(fallbackUrl, "_blank");
+        alert(
+          "Muitas transferências simultâneas. A abrir no Google Drive numa nova aba onde pode fazer download diretamente."
+        );
+      } else {
+        // For other errors, also fallback to Google Drive
+        const fallbackUrl = `https://drive.google.com/file/d/${img.id}/view`;
+        window.open(fallbackUrl, "_blank");
+        alert(
+          "Transferência direta não disponível. A abrir no Google Drive numa nova aba."
+        );
+      }
+    }
   };
 
   // Function to check if folder has password.txt file
@@ -195,6 +317,41 @@ export default function Gallery() {
       return data.files && data.files.length > 0;
     } catch (error) {
       console.error("Error checking password protection:", error);
+      return false;
+    }
+  };
+
+  // Function to check if folder has download.txt file with "true" content
+  const checkDownloadAvailability = async () => {
+    try {
+      // First, check if download.txt file exists
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+name='download.txt'&key=${apiKey}`
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+
+      if (data.files && data.files.length > 0) {
+        // File exists, now get its content
+        const fileId = data.files[0].id;
+        const contentRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`
+        );
+
+        if (contentRes.ok) {
+          const content = await contentRes.text();
+          // Check if content is "true" (case insensitive, ignoring all whitespace)
+          return content.replace(/\s+/g, "").toLowerCase() === "true";
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error checking download availability:", error);
       return false;
     }
   };
@@ -257,6 +414,10 @@ export default function Gallery() {
         sessionStorage.removeItem(`gallery_auth_${folderId}`);
       }
     }
+
+    // Check download availability regardless of authentication status
+    const downloadAvailable = await checkDownloadAvailability();
+    setDownloadEnabled(downloadAvailable);
 
     setCheckingAuth(false);
   };
@@ -433,7 +594,7 @@ export default function Gallery() {
             </div>
           )}
 
-          <div className="grid">
+          <div className="galleryGrid">
             {loading
               ? // Render skeleton placeholders while loading
                 Array.from({ length: skeletonCount }).map((_, index) => (
@@ -446,6 +607,7 @@ export default function Gallery() {
                   <Box
                     key={img.id}
                     cursor="pointer"
+                    position="relative"
                     onClick={() => handleImageClick(img)}
                   >
                     <ImageWithRetry
@@ -453,7 +615,7 @@ export default function Gallery() {
                       alt={img.name}
                       style={{
                         width: "100%",
-                        height: "300px",
+                        height: "20vh",
                         borderRadius: "8px",
                       }}
                       objectFit="cover"
@@ -465,6 +627,34 @@ export default function Gallery() {
                       onErrorCount={() => setErrorCount((prev) => prev + 1)}
                     />
                     <p>{img.name}</p>
+                    {downloadEnabled && (
+                      <button
+                        onClick={(e) => handleDownload(img, e)}
+                        style={{
+                          position: "absolute",
+                          bottom: "40px",
+                          right: "10px",
+                          backgroundColor: "rgba(0, 0, 0, 0.7)",
+                          color: "white",
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          border: "none",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                          cursor: "pointer",
+                          transition: "background-color 0.2s",
+                          zIndex: 10,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = "rgba(0, 0, 0, 0.9)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+                        }}
+                      >
+                        ⬇️ Download
+                      </button>
+                    )}
                   </Box>
                 ))}
           </div>
@@ -520,74 +710,109 @@ export default function Gallery() {
               <div
                 style={{
                   position: "relative",
-                  maxWidth: "90vw",
-                  maxHeight: "90vh",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  onClick={onClose}
-                  style={{
-                    position: "absolute",
-                    top: "10px",
-                    right: "10px",
-                    background: "rgba(0, 0, 0, 0.6)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    zIndex: 1001,
-                  }}
-                >
-                  ✕
-                </button>
                 {selectedImage && (
-                  <>
-                    {/* Loading placeholder */}
-                    {modalImageLoading && (
-                      <Box
-                        width="400px"
-                        height="300px"
-                        bg="gray.200"
-                        borderRadius="8px"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        position="relative"
-                      >
-                        <Skeleton
-                          width="100%"
-                          height="100%"
-                          borderRadius="8px"
-                        />
-                        <div
-                          style={{
-                            position: "absolute",
-                            color: "gray.600",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                          }}
-                        >
-                          A carregar imagem...
-                        </div>
-                      </Box>
-                    )}
-                    {/* Actual image */}
-                    <ImageWithRetry
-                      src={`https://drive.google.com/thumbnail?sz=w1200&id=${selectedImage.id}`}
+                  <div
+                    style={{
+                      position: "relative",
+                      maxWidth: "100%",
+                      height: "70%",
+                    }}
+                  >
+                    <button
+                      onClick={onClose}
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: "10px",
+                        background: "rgba(0, 0, 0, 0.6)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        zIndex: 1001,
+                      }}
+                    >
+                      ✕
+                    </button>
+
+                    {/* Show thumbnail first (already loaded) then try higher resolution */}
+                    <img
+                      src={`https://drive.google.com/thumbnail?sz=w400&id=${selectedImage.id}`}
                       alt={selectedImage.name}
                       style={{
-                        maxWidth: "100%",
-                        maxHeight: "90vh",
+                        width: "100%",
+                        height: "100%",
                         objectFit: "contain",
                         borderRadius: "8px",
-                        display: modalImageLoading ? "none" : "block",
+                        filter: modalImageLoading ? "blur(2px)" : "none",
+                        transition: "filter 0.3s ease",
+                        display: "block",
                       }}
                       onLoad={() => setModalImageLoading(false)}
-                      onError={() => setModalImageLoading(false)}
                     />
-                  </>
+
+                    {/* Try to load higher resolution in background */}
+                    {!modalImageLoading && (
+                      <img
+                        src={`https://drive.google.com/thumbnail?sz=w1200&id=${selectedImage.id}`}
+                        alt={selectedImage.name}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          objectFit: "contain",
+                          borderRadius: "8px",
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          opacity: 0,
+                          transition: "opacity 0.5s ease",
+                        }}
+                        onLoad={(e) => {
+                          // Smoothly replace the lower resolution image
+                          e.target.style.opacity = 1;
+                          // Hide the lower resolution image
+                          e.target.previousElementSibling.style.opacity = 0;
+                        }}
+                        onError={() => {
+                          // If high-res fails, just keep the low-res version
+                          console.log(
+                            "High-res version failed, keeping low-res"
+                          );
+                        }}
+                      />
+                    )}
+
+                    {/* Loading indicator */}
+                    {modalImageLoading && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          color: "white",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          backgroundColor: "rgba(0, 0, 0, 0.7)",
+                          padding: "8px 16px",
+                          borderRadius: "20px",
+                        }}
+                      >
+                        A carregar...
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -609,8 +834,8 @@ export default function Gallery() {
               <Dialog.Content
                 bg="transparent"
                 boxShadow="none"
-                maxW="90vw"
-                maxH="90vh"
+                width="100vw"
+                height="100vh"
               >
                 <Dialog.CloseTrigger
                   color="white"
@@ -627,8 +852,7 @@ export default function Gallery() {
                     <Image
                       src={`https://drive.google.com/thumbnail?sz=w1920&id=${selectedImage.id}`}
                       alt={selectedImage.name}
-                      maxW="100%"
-                      maxH="90vh"
+                      width="100vw"
                       objectFit="contain"
                       borderRadius="8px"
                     />

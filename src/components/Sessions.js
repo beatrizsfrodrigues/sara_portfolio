@@ -64,7 +64,7 @@ export default function Sessions() {
       }
 
       const passwordContent = await res.text();
-      return passwordContent.trim();
+      return passwordContent.replace(/\s+/g, "");
     } catch (error) {
       console.error("Error fetching password:", error);
       return null;
@@ -131,8 +131,8 @@ export default function Sessions() {
         return;
       }
 
-      // Check if entered password matches
-      if (passwordInput.trim() === correctPassword) {
+      // Check if entered password matches (removing all whitespace from both)
+      if (passwordInput.replace(/\s+/g, "") === correctPassword) {
         // Password correct, store auth in sessionStorage and navigate
         setIsPasswordDialogOpen(false);
 

@@ -242,13 +242,14 @@ const NAV_ITEMS = [
     href: "/",
   },
   {
+    label: "Sara Ferreira",
+    href: "/about",
+  },
+  {
     label: "Sessões",
     href: "/sessions",
   },
-  {
-    label: "Sobre mim",
-    href: "/about",
-  },
+
   {
     label: "Contactos",
     href: "/contacts",
