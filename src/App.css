@@ -1,9 +1,14 @@
+body {
+  background-color: rgb(27, 24, 30);
+  color: rgb(203, 209, 214);
+}
+
 #navbar {
   position: fixed;
   top: 0;
   z-index: 1000;
   background-color: rgb(27, 24, 30);
-  color: white;
+  color: rgb(203, 209, 214);
 }
 
 #navMobile {

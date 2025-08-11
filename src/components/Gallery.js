@@ -52,7 +52,6 @@ class RequestQueue {
 }
 
 const imageQueue = new RequestQueue(3); // Limit to 3 concurrent image requests
-const downloadQueue = new RequestQueue(1); // Limit to 1 concurrent download to avoid rate limiting
 
 // Utility function to retry requests with exponential backoff
 const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
@@ -163,9 +162,6 @@ export default function Gallery() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
 
-  // Download availability state
-  const [downloadEnabled, setDownloadEnabled] = useState(false);
-
   // Decode the folder name from URL
   const decodedFolderName = folderName
     ? decodeURIComponent(folderName)
@@ -188,120 +184,6 @@ export default function Gallery() {
     setModalImageLoading(true);
   };
 
-  // Function to handle image download with rate limiting and fallbacks
-  const handleDownload = async (img, e) => {
-    e.stopPropagation(); // Prevent triggering the image modal
-
-    // Show loading state
-    const button = e.target;
-    const originalText = button.textContent;
-    button.textContent = "A transferir...";
-    button.disabled = true;
-
-    try {
-      // Use download queue to limit concurrent downloads
-      await downloadQueue.add(async () => {
-        // Try different download methods in order of preference
-        const downloadMethods = [
-          // Method 1: Try the API endpoint with authentication
-          async () => {
-            const response = await fetch(
-              `https://www.googleapis.com/drive/v3/files/${img.id}?alt=media&key=${apiKey}`
-            );
-            if (response.status === 429) throw new Error("Rate limited");
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response;
-          },
-          // Method 2: Try the thumbnail endpoint with high resolution
-          async () => {
-            await delay(1000); // Wait 1 second to avoid rate limiting
-            const response = await fetch(
-              `https://drive.google.com/thumbnail?sz=w2000&id=${img.id}`
-            );
-            if (response.status === 429) throw new Error("Rate limited");
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response;
-          },
-        ];
-
-        let response = null;
-        let lastError = null;
-
-        // Try each method
-        for (const method of downloadMethods) {
-          try {
-            response = await method();
-            break; // Success, exit the loop
-          } catch (error) {
-            lastError = error;
-            console.log(`Download method failed: ${error.message}`);
-            continue;
-          }
-        }
-
-        if (!response) {
-          throw lastError || new Error("All download methods failed");
-        }
-
-        // Get the image blob
-        const blob = await response.blob();
-
-        // Create a download link
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-
-        // Set filename - keep original extension or add .jpg
-        let filename = img.name;
-        if (!filename.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          filename = filename.replace(/\.[^/.]+$/, "") + ".jpg";
-        }
-        link.download = filename;
-
-        // Trigger download
-        document.body.appendChild(link);
-        link.click();
-
-        // Cleanup
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      });
-
-      // Success feedback
-      button.textContent = "✅ Transferido";
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.disabled = false;
-      }, 2000);
-    } catch (error) {
-      console.error("Download failed:", error);
-
-      // Reset button state
-      button.textContent = originalText;
-      button.disabled = false;
-
-      // Check if it's a rate limiting issue
-      if (
-        error.message.includes("Rate limited") ||
-        error.message.includes("429")
-      ) {
-        // Fallback: open in Google Drive
-        const fallbackUrl = `https://drive.google.com/file/d/${img.id}/view`;
-        window.open(fallbackUrl, "_blank");
-        alert(
-          "Muitas transferências simultâneas. A abrir no Google Drive numa nova aba onde pode fazer download diretamente."
-        );
-      } else {
-        // For other errors, also fallback to Google Drive
-        const fallbackUrl = `https://drive.google.com/file/d/${img.id}/view`;
-        window.open(fallbackUrl, "_blank");
-        alert(
-          "Transferência direta não disponível. A abrir no Google Drive numa nova aba."
-        );
-      }
-    }
-  };
-
   // Function to check if folder has password.txt file
   const checkPasswordProtection = async () => {
     try {
@@ -317,41 +199,6 @@ export default function Gallery() {
       return data.files && data.files.length > 0;
     } catch (error) {
       console.error("Error checking password protection:", error);
-      return false;
-    }
-  };
-
-  // Function to check if folder has download.txt file with "true" content
-  const checkDownloadAvailability = async () => {
-    try {
-      // First, check if download.txt file exists
-      const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+name='download.txt'&key=${apiKey}`
-      );
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-
-      if (data.files && data.files.length > 0) {
-        // File exists, now get its content
-        const fileId = data.files[0].id;
-        const contentRes = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`
-        );
-
-        if (contentRes.ok) {
-          const content = await contentRes.text();
-          // Check if content is "true" (case insensitive, ignoring all whitespace)
-          return content.replace(/\s+/g, "").toLowerCase() === "true";
-        }
-      }
-
-      return false;
-    } catch (error) {
-      console.error("Error checking download availability:", error);
       return false;
     }
   };
@@ -414,10 +261,6 @@ export default function Gallery() {
         sessionStorage.removeItem(`gallery_auth_${folderId}`);
       }
     }
-
-    // Check download availability regardless of authentication status
-    const downloadAvailable = await checkDownloadAvailability();
-    setDownloadEnabled(downloadAvailable);
 
     setCheckingAuth(false);
   };
@@ -512,13 +355,22 @@ export default function Gallery() {
 
   const skeletonCount = 12; // You can adjust this number
 
+  // Alternative approach with fallback
+  const handleGoBack = () => {
+    // Check if there's history to go back to
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // Fallback to sessions if no history (e.g., direct URL access)
+      navigate("/sessions");
+    }
+  };
+
   return (
     <div className="bodyDiv">
-      <Link to="/sessions">
-        <Button colorPalette="teal" variant="solid">
-          <IoChevronBackOutline /> Voltar
-        </Button>
-      </Link>
+      <Button colorPalette="teal" variant="solid" onClick={handleGoBack}>
+        <IoChevronBackOutline /> Voltar
+      </Button>
       <h1>{decodedFolderName}</h1>
 
       {/* Authentication checking */}
@@ -627,34 +479,6 @@ export default function Gallery() {
                       onErrorCount={() => setErrorCount((prev) => prev + 1)}
                     />
                     <p>{img.name}</p>
-                    {downloadEnabled && (
-                      <button
-                        onClick={(e) => handleDownload(img, e)}
-                        style={{
-                          position: "absolute",
-                          bottom: "40px",
-                          right: "10px",
-                          backgroundColor: "rgba(0, 0, 0, 0.7)",
-                          color: "white",
-                          padding: "8px 12px",
-                          borderRadius: "6px",
-                          border: "none",
-                          fontSize: "12px",
-                          fontWeight: "500",
-                          cursor: "pointer",
-                          transition: "background-color 0.2s",
-                          zIndex: 10,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = "rgba(0, 0, 0, 0.9)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-                        }}
-                      >
-                        ⬇️ Download
-                      </button>
-                    )}
                   </Box>
                 ))}
           </div>

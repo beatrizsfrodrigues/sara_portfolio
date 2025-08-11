@@ -246,12 +246,15 @@ const NAV_ITEMS = [
     href: "/about",
   },
   {
+    label: "Portefólio",
+    href: "/portfolio",
+  },
+  {
     label: "Sessões",
     href: "/sessions",
   },
-
   {
-    label: "Contactos",
-    href: "/contacts",
+    label: "Encomendas",
+    href: "/orders",
   },
 ];
