@@ -12,7 +12,7 @@ if (!rootFolderId) {
 export default function Sessions() {
   return (
     <div className="bodyDiv">
-      <h1>Sessões</h1>
+      <h1>Trabalhos Recentes</h1>
       <Albums rootFolderId={rootFolderId} lock={true} />
     </div>
   );

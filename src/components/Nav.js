@@ -250,7 +250,7 @@ const NAV_ITEMS = [
     href: "/portfolio",
   },
   {
-    label: "Sessões",
+    label: "Trabalhos Recentes",
     href: "/sessions",
   },
   {

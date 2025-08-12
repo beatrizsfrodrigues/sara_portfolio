@@ -120,6 +120,10 @@ h3 {
   background-color: rgba(27, 24, 30, 0.249);
 }
 
+.btnVoltar:hover {
+  background-color: rgba(126, 125, 128, 0.249);
+}
+
 @media (max-width: 992px) {
   .galleryGrid {
     grid-template-columns: repeat(4, 1fr);

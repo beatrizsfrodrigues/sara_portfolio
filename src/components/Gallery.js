@@ -161,6 +161,7 @@ export default function Gallery() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [isPublicGallery, setIsPublicGallery] = useState(false);
 
   // Decode the folder name from URL
   const decodedFolderName = folderName
@@ -222,6 +223,7 @@ export default function Gallery() {
       } else {
         // Not protected, allow access
         setIsAuthenticated(true);
+        setIsPublicGallery(true);
       }
     } else {
       try {
@@ -234,6 +236,7 @@ export default function Gallery() {
         } else if (authData.isPublic) {
           // Public folder, allow access
           setIsAuthenticated(true);
+          setIsPublicGallery(true);
         } else if (authData.authenticated) {
           // Check if session is not too old (24 hours)
           const sessionAge = Date.now() - authData.timestamp;
@@ -368,7 +371,13 @@ export default function Gallery() {
 
   return (
     <div className="bodyDiv">
-      <Button colorPalette="teal" variant="solid" onClick={handleGoBack}>
+      <Button
+        colorPalette="gray"
+        color="rgb(203, 209, 214)"
+        variant="outline"
+        onClick={handleGoBack}
+        className="btnVoltar"
+      >
         <IoChevronBackOutline /> Voltar
       </Button>
       <h1>{decodedFolderName}</h1>
@@ -478,7 +487,7 @@ export default function Gallery() {
                       onClick={() => handleImageClick(img)}
                       onErrorCount={() => setErrorCount((prev) => prev + 1)}
                     />
-                    <p>{img.name}</p>
+                    {!isPublicGallery && <p>{img.name}</p>}
                   </Box>
                 ))}
           </div>
