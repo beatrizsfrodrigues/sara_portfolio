@@ -140,6 +140,14 @@ h3 {
   .galleryGrid {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  #coverDiv > p {
+    font-size: 2rem;
+  }
 }
 
 @media (max-width: 576px) {
