@@ -439,7 +439,7 @@ export default function Gallery() {
                 fontSize: "14px",
               }}
             >
-              ⚠️ Algumas imagens podem demorar a carregar devido a limitações do
+              Algumas imagens podem demorar a carregar devido a limitações do
               servidor.
               {errorCount > 5 &&
                 " Muitas imagens falharam - tente recarregar a página em alguns minutos."}
@@ -490,10 +490,10 @@ export default function Gallery() {
                 onClick={loadMoreImages}
                 disabled={loadingMore}
                 style={{
-                  padding: "12px 24px",
+                  padding: "8px 16px",
                   fontSize: "16px",
-                  backgroundColor: loadingMore ? "#ccc" : "#007bff",
-                  color: "white",
+                  backgroundColor: loadingMore ? "#ccc" : "rgb(203, 209, 214)",
+                  color: "rgb(27, 24, 30)",
                   border: "none",
                   borderRadius: "6px",
                   cursor: loadingMore ? "not-allowed" : "pointer",

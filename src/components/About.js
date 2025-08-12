@@ -40,15 +40,15 @@ export default function About() {
           que contribui para uma perceção única de ritmo, expressão e composição
           — elementos que também se refletem no seu trabalho fotográfico.
           <br /> <br /> Embora a sua especialização fotográfica seja a dança,
-          também realiza trabalhos em eventos, retratos individuais, sessões de
-          casal e sessões que retratam laços de amizade, possuindo experiência
-          consolidada em todas estas áreas.
+          também realiza trabalhos em todo o tipo de eventos, retratos
+          individuais, sessões de casal e sessões que retratam laços de amizade,
+          possuindo experiência consolidada em todas estas áreas.
         </p>
       </Flex>
       <h1>Contactos</h1>
       <p>
-        Telemóvel: +351 915 370 827 email: ssaras.photos@gmail.com Instagram
-        sara._.photos
+        Telemóvel: +351 915 370 827 <br /> <br /> email: ssaras.photos@gmail.com{" "}
+        <br /> <br /> Instagram sara._.photos
       </p>
     </div>
   );
