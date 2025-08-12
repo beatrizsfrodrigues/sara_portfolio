@@ -442,66 +442,85 @@ export default function Albums({
   return (
     <>
       <div className="grid">
-        {loading
-          ? // Render skeleton placeholders while loading
-            Array.from({ length: skeletonCount }).map((_, index) => (
-              <Box key={index} width="100%">
-                <Skeleton height="200px" mb="4" />
-                <Skeleton height="20px" mb="2" />
-                <Skeleton height="40px" />
-              </Box>
-            ))
-          : // Render the actual cards after loading is complete
-            folders.map((folder) => (
-              <div
-                key={folder.id}
-                style={{
-                  cursor: download ? "default" : "pointer",
-                  width: "100%",
-                }}
-                onClick={
-                  download ? undefined : (e) => handleFolderClick(folder, e)
-                }
+        {loading ? (
+          // Render skeleton placeholders while loading
+          Array.from({ length: skeletonCount }).map((_, index) => (
+            <Box key={index} width="100%">
+              <Skeleton height="200px" mb="4" />
+              <Skeleton height="20px" mb="2" />
+              <Skeleton height="40px" />
+            </Box>
+          ))
+        ) : folders.length === 0 ? (
+          // Show empty state when no folders found
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              textAlign: "center",
+              padding: "60px 20px",
+              color: "#666",
+            }}
+          >
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px" }}>
+              Nada para ver aqui
+            </h3>
+            <p style={{ margin: "0", fontSize: "14px" }}>
+              Não foram encontrados albuns nesta secção.
+            </p>
+          </div>
+        ) : (
+          // Render the actual cards after loading is complete
+          folders.map((folder) => (
+            <div
+              key={folder.id}
+              style={{
+                cursor: download ? "default" : "pointer",
+                width: "100%",
+              }}
+              onClick={
+                download ? undefined : (e) => handleFolderClick(folder, e)
+              }
+            >
+              <Card.Root
+                overflow="hidden"
+                width="100%"
+                height={download ? "350px" : "300px"}
               >
-                <Card.Root
-                  overflow="hidden"
-                  width="100%"
-                  height={download ? "350px" : "300px"}
-                >
-                  {folder.firstImageId ? (
-                    <Image
-                      src={`https://drive.google.com/thumbnail?sz=w640&id=${folder.firstImageId}`}
-                      alt={`First image from ${folder.name}`}
-                      height="200px"
-                    />
-                  ) : (
-                    <Image
-                      src="https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png"
-                      alt="No image found"
-                      height="200px"
-                    />
+                {folder.firstImageId ? (
+                  <Image
+                    src={`https://drive.google.com/thumbnail?sz=w640&id=${folder.firstImageId}`}
+                    alt={`First image from ${folder.name}`}
+                    height="200px"
+                  />
+                ) : (
+                  <Image
+                    src="https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png"
+                    alt="No image found"
+                    height="200px"
+                  />
+                )}
+                <Card.Body gap="2">
+                  <Card.Title>{folder.name}</Card.Title>
+                  {download && (
+                    <Button
+                      colorPalette="blue"
+                      variant="solid"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFolderClick(folder, e);
+                      }}
+                      width="100%"
+                      mt="2"
+                    >
+                      Transferir pasta
+                    </Button>
                   )}
-                  <Card.Body gap="2">
-                    <Card.Title>{folder.name}</Card.Title>
-                    {download && (
-                      <Button
-                        colorPalette="blue"
-                        variant="solid"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFolderClick(folder, e);
-                        }}
-                        width="100%"
-                        mt="2"
-                      >
-                        Transferir pasta
-                      </Button>
-                    )}
-                  </Card.Body>
-                </Card.Root>
-              </div>
-            ))}
+                </Card.Body>
+              </Card.Root>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Password Protection Modal */}

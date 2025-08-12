@@ -56,6 +56,18 @@ h1 {
   margin: 16px 0px;
 }
 
+h2 {
+  font-weight: bold;
+  font-size: 24px;
+  margin: 16px 0px;
+}
+
+h3 {
+  font-weight: bold;
+  font-size: 16px;
+  margin: 16px 0px;
+}
+
 .btnMenu {
   background: none;
   border: none;
@@ -78,9 +90,23 @@ h1 {
   grid-auto-rows: auto;
 }
 
+.contact {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+  text-decoration: underline;
+}
+
 @media (max-width: 992px) {
   .galleryGrid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  #about {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 }
 
@@ -96,5 +122,11 @@ h1 {
   }
   .galleryGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  #about-image {
+    max-width: 300px;
+    width: 100%;
+    height: auto;
   }
 }
