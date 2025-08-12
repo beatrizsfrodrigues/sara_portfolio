@@ -482,29 +482,31 @@ export default function Albums({
               }
             >
               <Card.Root
+                className="album-card"
                 overflow="hidden"
                 width="100%"
-                height={download ? "350px" : "300px"}
+                height="300px"
               >
                 {folder.firstImageId ? (
                   <Image
                     src={`https://drive.google.com/thumbnail?sz=w640&id=${folder.firstImageId}`}
                     alt={`First image from ${folder.name}`}
-                    height="200px"
+                    height="100%"
                   />
                 ) : (
                   <Image
                     src="https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png"
                     alt="No image found"
-                    height="200px"
+                    height="100%"
                   />
                 )}
-                <Card.Body gap="2">
+                <Card.Body className="cardBody" gap="0">
                   <Card.Title>{folder.name}</Card.Title>
                   {download && (
                     <Button
-                      colorPalette="blue"
-                      variant="solid"
+                      colorPalette="gray"
+                      color="rgb(203, 209, 214)"
+                      variant="outline"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -512,6 +514,9 @@ export default function Albums({
                       }}
                       width="100%"
                       mt="2"
+                      marginBottom="8px"
+                      marginTop="-4px"
+                      className="btnTransferir"
                     >
                       Transferir pasta
                     </Button>
