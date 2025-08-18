@@ -15,8 +15,10 @@ import { useState, useEffect } from "react";
 import { HiMenu, HiX, HiChevronDown, HiChevronRight } from "react-icons/hi";
 import { FaInstagram } from "react-icons/fa";
 import { useParams, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function WithSubnavigation() {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const onToggle = () => setIsOpen(!isOpen);
 
@@ -60,7 +62,12 @@ export default function WithSubnavigation() {
           minW="0"
           height="30px"
         >
-          <img src={`/logo.png`} alt={`Logo`} />
+          <img
+            onClick={() => navigate("/home")}
+            src={`/logo.png`}
+            alt={`Logo`}
+            style={{ cursor: "pointer" }}
+          />
 
           <Flex align={"center"} display={{ base: "none", md: "flex" }} ml={10}>
             <DesktopNav />
@@ -237,10 +244,6 @@ const MobileNavItem = ({ label, children, href, onClose }) => {
 };
 
 const NAV_ITEMS = [
-  {
-    label: "Início",
-    href: "/",
-  },
   {
     label: "Sara Ferreira",
     href: "/about",
