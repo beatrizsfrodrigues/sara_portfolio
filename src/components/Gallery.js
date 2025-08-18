@@ -150,7 +150,7 @@ export default function Gallery() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null); // index of selected image
   const [isOpen, setIsOpen] = useState(false);
   const [modalImageLoading, setModalImageLoading] = useState(true);
   const [nextPageToken, setNextPageToken] = useState(null);
@@ -168,21 +168,30 @@ export default function Gallery() {
     ? decodeURIComponent(folderName)
     : "Gallery";
 
-  const handleImageClick = (image) => {
-    // Prevent double clicks
+  const handleImageClick = (image, idx) => {
     if (isOpen) return;
-
-    console.log("Image clicked:", image.name); // Debug log
-    setSelectedImage(image);
+    setSelectedIndex(idx);
     setIsOpen(true);
-    setModalImageLoading(true); // Reset loading state for new image
-    console.log("Dialog should open, isOpen will be:", true); // Debug log
+    setModalImageLoading(true);
   };
 
   const onClose = () => {
     setIsOpen(false);
-    setSelectedImage(null);
+    setSelectedIndex(null);
     setModalImageLoading(true);
+  };
+
+  const showPrev = () => {
+    if (selectedIndex > 0) {
+      setSelectedIndex(selectedIndex - 1);
+      setModalImageLoading(true);
+    }
+  };
+  const showNext = () => {
+    if (selectedIndex < images.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+      setModalImageLoading(true);
+    }
   };
 
   // Function to check if folder has password.txt file
@@ -464,12 +473,12 @@ export default function Gallery() {
                   </Box>
                 ))
               : // Render the actual images after loading is complete
-                images.map((img) => (
+                images.map((img, idx) => (
                   <Box
                     key={img.id}
                     cursor="pointer"
                     position="relative"
-                    onClick={() => handleImageClick(img)}
+                    onClick={() => handleImageClick(img, idx)}
                   >
                     <ImageWithRetry
                       src={`https://drive.google.com/thumbnail?sz=w400&id=${img.id}`}
@@ -484,7 +493,7 @@ export default function Gallery() {
                         transform: "scale(1.05)",
                         transition: "transform 0.2s",
                       }}
-                      onClick={() => handleImageClick(img)}
+                      onClick={() => handleImageClick(img, idx)}
                       onErrorCount={() => setErrorCount((prev) => prev + 1)}
                     />
                     {!isPublicGallery && <p>{img.name}</p>}
@@ -524,7 +533,7 @@ export default function Gallery() {
           )}
 
           {/* Simple modal overlay for testing */}
-          {isOpen && (
+          {isOpen && selectedIndex !== null && (
             <div
               style={{
                 position: "fixed",
@@ -553,100 +562,107 @@ export default function Gallery() {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {selectedImage && (
+                {/* Previous Button */}
+                <button
+                  onClick={showPrev}
+                  disabled={selectedIndex === 0}
+                  style={{
+                    position: "absolute",
+                    left: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: 40,
+                    height: 40,
+                    fontSize: 24,
+                    cursor: selectedIndex === 0 ? "not-allowed" : "pointer",
+                    zIndex: 1002,
+                  }}
+                >
+                  &#8592;
+                </button>
+                {/* Next Button */}
+                <button
+                  onClick={showNext}
+                  disabled={selectedIndex === images.length - 1}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: 40,
+                    height: 40,
+                    fontSize: 24,
+                    cursor:
+                      selectedIndex === images.length - 1
+                        ? "not-allowed"
+                        : "pointer",
+                    zIndex: 1002,
+                  }}
+                >
+                  &#8594;
+                </button>
+                {/* Image Display with Close Button in the corner of the image */}
+                <div
+                  style={{
+                    position: "relative",
+                    maxWidth: "100%",
+                    height: "70%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {/* Image container */}
                   <div
                     style={{
                       position: "relative",
-                      maxWidth: "100%",
-                      height: "70%",
+                      display: "inline-block", // shrink-wraps to image
                     }}
                   >
+                    <img
+                      src={`https://drive.google.com/thumbnail?sz=w1200&id=${images[selectedIndex].id}`}
+                      alt={images[selectedIndex].name}
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "70vh",
+                        objectFit: "contain",
+                        borderRadius: "8px",
+                        display: "block",
+                      }}
+                    />
+
+                    {/* Close button ON TOP in corner */}
                     <button
                       onClick={onClose}
                       style={{
                         position: "absolute",
-                        top: "10px",
-                        right: "10px",
-                        background: "rgba(0, 0, 0, 0.6)",
+                        top: "8px",
+                        right: "8px",
+                        background: "rgba(0,0,0,0.6)",
                         color: "white",
                         border: "none",
-                        borderRadius: "4px",
-                        padding: "8px 12px",
+                        borderRadius: "50%",
+                        width: "32px",
+                        height: "32px",
                         cursor: "pointer",
-                        zIndex: 1001,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "18px",
                       }}
                     >
                       ✕
                     </button>
-
-                    {/* Show thumbnail first (already loaded) then try higher resolution */}
-                    <img
-                      src={`https://drive.google.com/thumbnail?sz=w400&id=${selectedImage.id}`}
-                      alt={selectedImage.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        borderRadius: "8px",
-                        filter: modalImageLoading ? "blur(2px)" : "none",
-                        transition: "filter 0.3s ease",
-                        display: "block",
-                      }}
-                      onLoad={() => setModalImageLoading(false)}
-                    />
-
-                    {/* Try to load higher resolution in background */}
-                    {!modalImageLoading && (
-                      <img
-                        src={`https://drive.google.com/thumbnail?sz=w1200&id=${selectedImage.id}`}
-                        alt={selectedImage.name}
-                        style={{
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                          objectFit: "contain",
-                          borderRadius: "8px",
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          opacity: 0,
-                          transition: "opacity 0.5s ease",
-                        }}
-                        onLoad={(e) => {
-                          // Smoothly replace the lower resolution image
-                          e.target.style.opacity = 1;
-                          // Hide the lower resolution image
-                          e.target.previousElementSibling.style.opacity = 0;
-                        }}
-                        onError={() => {
-                          // If high-res fails, just keep the low-res version
-                          console.log(
-                            "High-res version failed, keeping low-res"
-                          );
-                        }}
-                      />
-                    )}
-
-                    {/* Loading indicator */}
-                    {modalImageLoading && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "50%",
-                          left: "50%",
-                          transform: "translate(-50%, -50%)",
-                          color: "white",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          backgroundColor: "rgba(0, 0, 0, 0.7)",
-                          padding: "8px 16px",
-                          borderRadius: "20px",
-                        }}
-                      >
-                        A carregar...
-                      </div>
-                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           )}
@@ -669,6 +685,8 @@ export default function Gallery() {
                 boxShadow="none"
                 width="100vw"
                 height="100vh"
+                alignItems="center"
+                justifyContent="center"
               >
                 <Dialog.CloseTrigger
                   color="white"
@@ -681,10 +699,10 @@ export default function Gallery() {
                   zIndex={2}
                 />
                 <Dialog.Body p={0}>
-                  {selectedImage && (
+                  {selectedIndex !== null && images[selectedIndex] && (
                     <Image
-                      src={`https://drive.google.com/thumbnail?sz=w1920&id=${selectedImage.id}`}
-                      alt={selectedImage.name}
+                      src={`https://drive.google.com/thumbnail?sz=w1920&id=${images[selectedIndex].id}`}
+                      alt={images[selectedIndex].name}
                       width="100vw"
                       objectFit="contain"
                       borderRadius="8px"
