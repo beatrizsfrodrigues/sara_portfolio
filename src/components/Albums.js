@@ -492,6 +492,7 @@ export default function Albums({
                     src={`https://drive.google.com/thumbnail?sz=w640&id=${folder.firstImageId}`}
                     alt={`First image from ${folder.name}`}
                     height="100%"
+                    onContextMenu={(e) => e.preventDefault()}
                   />
                 ) : (
                   <Image

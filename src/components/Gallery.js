@@ -140,6 +140,7 @@ const ImageWithRetry = ({
       onError={handleImageError}
       onLoad={handleImageLoad}
       onClick={onClick}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 };
@@ -156,6 +157,7 @@ export default function Gallery() {
   const [nextPageToken, setNextPageToken] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
+  const [hiResLoaded, setHiResLoaded] = useState(false);
 
   // Authentication states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -628,15 +630,20 @@ export default function Gallery() {
                     }}
                   >
                     <img
-                      src={`https://drive.google.com/thumbnail?sz=w1200&id=${images[selectedIndex].id}`}
-                      alt={images[selectedIndex].name}
+                      src={
+                        hiResLoaded
+                          ? `https://drive.google.com/thumbnail?sz=w1200&id=${images[selectedIndex].id}`
+                          : `https://drive.google.com/thumbnail?sz=w400&id=${images[selectedIndex].id}`
+                      }
+                      onLoad={() => setHiResLoaded(true)}
                       style={{
-                        maxWidth: "100%",
                         maxHeight: "70vh",
+                        maxWidth: "90vw",
                         objectFit: "contain",
                         borderRadius: "8px",
-                        display: "block",
+                        transition: "opacity 0.5s",
                       }}
+                      onContextMenu={(e) => e.preventDefault()}
                     />
 
                     {/* Close button ON TOP in corner */}
@@ -706,6 +713,7 @@ export default function Gallery() {
                       width="100vw"
                       objectFit="contain"
                       borderRadius="8px"
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                   )}
                 </Dialog.Body>

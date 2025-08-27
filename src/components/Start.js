@@ -83,7 +83,12 @@ function Start() {
           <div className="masonryGrid">
             {images.map((img, i) => (
               <React.Fragment key={i}>
-                <img src={img.src} alt={img.name} className="masonryImage" />
+                <img
+                  src={img.src}
+                  alt={img.name}
+                  className="masonryImage"
+                  onContextMenu={(e) => e.preventDefault()}
+                />
                 {i === Math.floor(images.length / 2 + 2) && (
                   <Button
                     colorPalette="gray"
