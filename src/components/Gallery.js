@@ -298,21 +298,18 @@ export default function Gallery() {
     setHasMore(true);
 
     try {
-      const fetchData = async () => {
-        const res = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'&pageSize=50&key=${apiKey}`
-        );
-
-        if (res.status === 429) {
-          throw new Error("Rate limit exceeded");
-        }
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-
-        return await res.json();
-      };
+      const fetchData = async () =>
+        await fetch(
+          `https://sara-back-gdf9.onrender.com/folder-images/${folderId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}), // no token on first load
+          }
+        ).then((res) => {
+          if (!res.ok) throw new Error(`Server error: ${res.status}`);
+          return res.json();
+        });
 
       const data = await retryWithBackoff(fetchData);
       const files = data.files || [];
@@ -324,48 +321,62 @@ export default function Gallery() {
       console.log(`Loaded ${files.length} images from folder`);
     } catch (error) {
       console.error("Erro ao buscar imagens:", error);
-      // Set empty state if fetch fails
       setImages([]);
       setHasMore(false);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const loadMoreImages = async () => {
-    if (!nextPageToken || loadingMore || !hasMore) return;
-
+    if (!nextPageToken) return;
     setLoadingMore(true);
+
     try {
-      const fetchData = async () => {
-        const res = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'&pageSize=50&pageToken=${nextPageToken}&key=${apiKey}`
-        );
-
-        if (res.status === 429) {
-          throw new Error("Rate limit exceeded");
+      const res = await fetch(
+        `https://sara-back-gdf9.onrender.com/folder-images/${folderId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pageToken: nextPageToken }),
         }
+      );
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
-        return await res.json();
-      };
-
-      const data = await retryWithBackoff(fetchData);
-      const newFiles = data.files || [];
-
-      setImages((prev) => [...prev, ...newFiles]);
+      const data = await res.json();
+      setImages((prev) => [...prev, ...data.files]);
       setNextPageToken(data.nextPageToken || null);
       setHasMore(!!data.nextPageToken);
-
-      console.log(`Loaded ${newFiles.length} more images`);
-    } catch (error) {
-      console.error("Erro ao buscar mais imagens:", error);
-      // Don't update state if load more fails, just log the error
+    } catch (err) {
+      console.error("Error fetching more images:", err);
+    } finally {
+      setLoadingMore(false);
     }
-    setLoadingMore(false);
   };
+
+  // const loadMoreImages = async () => {
+  //   if (!nextPageToken) return;
+
+  //   try {
+  //     const res = await fetch(
+  //       `https://sara-back-gdf9.onrender.com/folder-images/${folderId}${
+  //         nextPageToken ? `?pageToken=${nextPageToken}` : ""
+  //       }`
+  //     );
+
+  //     if (!res.ok) {
+  //       throw new Error(`Server error: ${res.status}`);
+  //     }
+
+  //     const data = await res.json();
+
+  //     setImages((prev) => [...prev, ...data.files]);
+  //     setNextPageToken(data.nextPageToken || null);
+  //   } catch (err) {
+  //     console.error("Error fetching images:", err);
+  //   }
+  // };
 
   const skeletonCount = 12; // You can adjust this number
 
@@ -483,7 +494,7 @@ export default function Gallery() {
                     onClick={() => handleImageClick(img, idx)}
                   >
                     <ImageWithRetry
-                      src={`https://drive.google.com/thumbnail?sz=w400&id=${img.id}`}
+                      src={`https://sara-back-gdf9.onrender.com/thumbnail/${img.id}`}
                       alt={img.name}
                       style={{
                         width: "100%",
