@@ -229,7 +229,7 @@ export default function Albums({
       );
 
       // Fetch all images in the folder
-      const response = await fetch(`/api/download/${fileId}`);
+      const response = await fetch(`/api/download/${folder.id}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch folder contents: ${response.status}`);
@@ -259,9 +259,7 @@ export default function Albums({
         try {
           console.log(`Downloading ${i + 1}/${images.length}: ${image.name}`);
 
-          const imageResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${image.id}?alt=media&key=${apiKey}`
-          );
+          const imageResponse = await fetch(`/api/download/${image.id}`);
 
           if (imageResponse.ok) {
             const blob = await imageResponse.blob();
