@@ -229,9 +229,7 @@ export default function Albums({
       );
 
       // Fetch all images in the folder
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${folder.id}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name)&key=${apiKey}`
-      );
+      const response = await fetch(`/api/download/${fileId}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch folder contents: ${response.status}`);
