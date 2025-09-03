@@ -69,7 +69,7 @@ const ImageWithRetry = ({
       height="100%" // enforce full height of parent
       width="100%" // enforce full width
       overflow="hidden"
-      borderRadius="8px"
+      borderRadius="6px"
     >
       {loading && (
         <Box
