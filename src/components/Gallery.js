@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Button, Image, Skeleton, Box, Dialog } from "@chakra-ui/react";
+import {
+  Button,
+  Image,
+  Skeleton,
+  Box,
+  Dialog,
+  Spinner,
+} from "@chakra-ui/react";
 import { IoChevronBackOutline } from "react-icons/io5";
 
 const apiKey = process.env.REACT_APP_API_KEY;
+
+const backend_url = process.env.REACT_APP_BACKEND_URL;
 
 if (!apiKey) {
   console.error("Missing required environment variable: REACT_APP_API_KEY");
@@ -83,17 +92,15 @@ const ImageWithRetry = ({
   const [imageSrc, setImageSrc] = useState(src);
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [loading, setLoading] = useState(true); // <-- new
   const maxRetries = 2;
 
   const handleImageError = async () => {
     console.log(`Image failed to load: ${src}, retry count: ${retryCount}`);
-
     if (retryCount < maxRetries) {
-      // Exponential backoff with longer delays to be more conservative
       const delayTime = 2000 * Math.pow(2, retryCount); // 2s, 4s, 8s
-      await delay(delayTime);
+      await new Promise((r) => setTimeout(r, delayTime));
       setRetryCount((prev) => prev + 1);
-      // Force reload by adding timestamp
       setImageSrc(`${src}&t=${Date.now()}`);
     } else {
       setHasError(true);
@@ -105,6 +112,7 @@ const ImageWithRetry = ({
   const handleImageLoad = () => {
     setHasError(false);
     setRetryCount(0);
+    setLoading(false); // <-- hide spinner
     if (onLoad) onLoad();
   };
 
@@ -131,17 +139,39 @@ const ImageWithRetry = ({
   }
 
   return (
-    <Image
-      src={imageSrc}
-      alt={alt}
+    <Box
+      position="relative"
       style={style}
-      objectFit={objectFit}
-      _hover={_hover}
-      onError={handleImageError}
-      onLoad={handleImageLoad}
-      onClick={onClick}
-      onContextMenu={(e) => e.preventDefault()}
-    />
+      cursor={onClick ? "pointer" : "default"}
+    >
+      {loading && (
+        <Box
+          position="absolute"
+          top="0"
+          left="0"
+          width="100%"
+          height="100%"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          bg="gray.100"
+          borderRadius="8px"
+        >
+          <Spinner size="md" color="gray.500" />
+        </Box>
+      )}
+      <Image
+        src={imageSrc}
+        alt={alt}
+        style={{ ...style, display: loading ? "none" : "block" }}
+        objectFit={objectFit}
+        _hover={_hover}
+        onError={handleImageError}
+        onLoad={handleImageLoad}
+        onClick={onClick}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+    </Box>
   );
 };
 
@@ -291,6 +321,11 @@ export default function Gallery() {
     }
   }, [isAuthenticated, checkingAuth]);
 
+  useEffect(() => {
+    // Whenever selectedIndex changes, reset hi-res loading
+    setHiResLoaded(false);
+  }, [selectedIndex]);
+
   async function fetchImages() {
     setLoading(true);
     setImages([]);
@@ -299,14 +334,11 @@ export default function Gallery() {
 
     try {
       const fetchData = async () =>
-        await fetch(
-          `https://sara-back-gdf9.onrender.com/folder-images/${folderId}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}), // no token on first load
-          }
-        ).then((res) => {
+        await fetch(`${backend_url}/folder-images/${folderId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}), // no token on first load
+        }).then((res) => {
           if (!res.ok) throw new Error(`Server error: ${res.status}`);
           return res.json();
         });
@@ -333,14 +365,11 @@ export default function Gallery() {
     setLoadingMore(true);
 
     try {
-      const res = await fetch(
-        `https://sara-back-gdf9.onrender.com/folder-images/${folderId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pageToken: nextPageToken }),
-        }
-      );
+      const res = await fetch(`${backend_url}/folder-images/${folderId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageToken: nextPageToken }),
+      });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
@@ -491,10 +520,18 @@ export default function Gallery() {
                     key={img.id}
                     cursor="pointer"
                     position="relative"
-                    onClick={() => handleImageClick(img, idx)}
+                    onClick={() =>
+                      handleImageClick(
+                        {
+                          ...img,
+                          thumbnailUrl: `${backend_url}/thumbnail/${img.id}?size=400`,
+                        },
+                        idx
+                      )
+                    }
                   >
                     <ImageWithRetry
-                      src={`https://sara-back-gdf9.onrender.com/thumbnail/${img.id}`}
+                      src={`${backend_url}/thumbnail/${img.id}?size=400`}
                       alt={img.name}
                       style={{
                         width: "100%",
@@ -597,6 +634,7 @@ export default function Gallery() {
                 >
                   &#8592;
                 </button>
+
                 {/* Next Button */}
                 <button
                   onClick={showNext}
@@ -622,7 +660,8 @@ export default function Gallery() {
                 >
                   &#8594;
                 </button>
-                {/* Image Display with Close Button in the corner of the image */}
+
+                {/* Image Display */}
                 <div
                   style={{
                     position: "relative",
@@ -633,31 +672,47 @@ export default function Gallery() {
                     justifyContent: "center",
                   }}
                 >
-                  {/* Image container */}
                   <div
                     style={{
                       position: "relative",
-                      display: "inline-block", // shrink-wraps to image
+                      display: "inline-block",
                     }}
                   >
+                    {/* LOW-RES THUMBNAIL */}
                     <img
+                      key={`thumb-${images[selectedIndex].id}`} // <-- key here
                       src={
-                        hiResLoaded
-                          ? `https://drive.google.com/thumbnail?sz=w1200&id=${images[selectedIndex].id}`
-                          : `https://drive.google.com/thumbnail?sz=w400&id=${images[selectedIndex].id}`
+                        images[selectedIndex].thumbnailUrl ||
+                        `${backend_url}/thumbnail/${images[selectedIndex].id}?size=400`
                       }
-                      onLoad={() => setHiResLoaded(true)}
                       style={{
                         maxHeight: "70vh",
                         maxWidth: "90vw",
                         objectFit: "contain",
                         borderRadius: "8px",
-                        transition: "opacity 0.5s",
                       }}
+                      alt={images[selectedIndex].name}
+                    />
+
+                    {/* HIGH-RES IMAGE */}
+                    <img
+                      key={`hires-${images[selectedIndex].id}`} // <-- key here
+                      src={`${backend_url}/thumbnail/${images[selectedIndex].id}?size=1400`}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        maxHeight: "70vh",
+                        maxWidth: "90vw",
+                        objectFit: "contain",
+                        borderRadius: "8px",
+                      }}
+                      onLoad={() => setHiResLoaded(true)}
+                      alt={images[selectedIndex].name}
                       onContextMenu={(e) => e.preventDefault()}
                     />
 
-                    {/* Close button ON TOP in corner */}
+                    {/* Close button */}
                     <button
                       onClick={onClose}
                       style={{
@@ -675,6 +730,7 @@ export default function Gallery() {
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: "18px",
+                        zIndex: 1003,
                       }}
                     >
                       ✕

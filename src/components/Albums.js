@@ -4,6 +4,7 @@ import { Button, Card, Image, Skeleton, Box } from "@chakra-ui/react";
 import JSZip from "jszip";
 import PasswordModal from "./PasswordModal";
 import DownloadModal from "./DownloadModal";
+import ImageWithRetry from "./ImageWithRetry";
 
 import { saveAs } from "file-saver";
 
@@ -19,8 +20,6 @@ export default function Albums({
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [checkingPassword, setCheckingPassword] = useState(false);
-
-  // Download modal states
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [downloadModalTitle, setDownloadModalTitle] = useState("");
   const [downloadModalMessage, setDownloadModalMessage] = useState("");
@@ -30,7 +29,8 @@ export default function Albums({
 
   const navigate = useNavigate();
 
-  // Helper functions for download modal
+  const backend_url = process.env.REACT_APP_BACKEND_URL;
+
   const showDownloadModal = (
     title,
     message,
@@ -51,9 +51,7 @@ export default function Albums({
   // Function to check if folder has password.txt file
   const checkPasswordProtection = async (folderId) => {
     try {
-      const res = await fetch(
-        `https://sara-back-gdf9.onrender.com/api/drive/password/${folderId}`
-      );
+      const res = await fetch(`${backend_url}/api/drive/password/${folderId}`);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
@@ -69,7 +67,7 @@ export default function Albums({
   // Function to get password from password.txt file
   const getPasswordFromFile = async (fileId) => {
     const res = await fetch(
-      `https://sara-back-gdf9.onrender.com/api/drive/password/content/${fileId}`
+      `${backend_url}/api/drive/password/content/${fileId}`
     );
     const password = await res.text();
     return password.trim();
@@ -218,9 +216,7 @@ export default function Albums({
 
     try {
       // 1️⃣ Get list of files in folder
-      const res = await fetch(
-        `https://sara-back-gdf9.onrender.com/api/download/${folderId}`
-      );
+      const res = await fetch(`${backend_url}/api/download/${folderId}`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       if (!data?.files?.length)
@@ -231,9 +227,7 @@ export default function Albums({
       // 2️⃣ Fetch each file content as blob
       await Promise.all(
         data.files.map(async (file) => {
-          const fileRes = await fetch(
-            `https://sara-back-gdf9.onrender.com/api/download/${file.id}`
-          );
+          const fileRes = await fetch(`${backend_url}/api/download/${file.id}`);
           if (!fileRes.ok) throw new Error(`Falha ao buscar ${file.name}`);
           const blob = await fileRes.blob();
           zip.file(file.name, blob);
@@ -266,7 +260,7 @@ export default function Albums({
     const fetchFolders = async () => {
       try {
         const res = await fetch(
-          `https://sara-back-gdf9.onrender.com/api/drive/folders/${rootFolderId}`
+          `${backend_url}/api/drive/folders/${rootFolderId}`
         );
 
         const rawResponse = await res.text(); // Read body once
@@ -290,7 +284,7 @@ export default function Albums({
           foldersList.map(async (folder) => {
             // 1️⃣ Look for 'cover' subfolder
             const coverRes = await fetch(
-              `https://sara-back-gdf9.onrender.com/api/drive/folders/${folder.id}`
+              `${backend_url}/api/drive/folders/${folder.id}`
             );
             const subfolders = await coverRes.json();
             const coverFolder = subfolders.find(
@@ -302,7 +296,7 @@ export default function Albums({
             if (coverFolder) {
               // 2️⃣ Fetch first image inside 'cover' folder
               const imagesRes = await fetch(
-                `https://sara-back-gdf9.onrender.com/api/drive/images/${coverFolder.id}`
+                `${backend_url}/api/drive/images/${coverFolder.id}`
               );
               const images = await imagesRes.json();
               if (images?.length) coverImageId = images[0].id;
@@ -361,63 +355,62 @@ export default function Albums({
             </p>
           </div>
         ) : (
-          folders.map((folder) => (
-            <div
-              key={folder.id}
-              style={{
-                cursor: download ? "default" : "pointer",
-                width: "100%",
-              }}
-              onClick={
-                download ? undefined : (e) => handleFolderClick(folder, e)
-              }
-            >
-              <Card.Root
-                className="album-card"
-                overflow="hidden"
-                width="100%"
-                height="300px"
+          folders.map((folder) => {
+            const imageUrl =
+              folder.coverImageId || folder.firstImageId
+                ? `${backend_url}/thumbnail/${
+                    folder.coverImageId || folder.firstImageId
+                  }`
+                : "https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png";
+
+            return (
+              <div
+                key={folder.id}
+                style={{
+                  cursor: download ? "default" : "pointer",
+                  width: "100%",
+                }}
+                onClick={
+                  download ? undefined : (e) => handleFolderClick(folder, e)
+                }
               >
-                {folder.coverImageId ? (
-                  <Image
-                    src={`https://sara-back-gdf9.onrender.com/api/thumbnail/${folder.coverImageId}`}
+                <Card.Root
+                  className="album-card"
+                  overflow="hidden"
+                  width="100%"
+                  height="300px"
+                >
+                  <ImageWithRetry
+                    src={imageUrl}
                     alt={`Capa do álbum ${folder.name}`}
                     height="100%"
-                    onContextMenu={(e) => e.preventDefault()}
                   />
-                ) : (
-                  <Image
-                    src="https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png"
-                    alt="Nenhuma imagem encontrada"
-                    height="100%"
-                  />
-                )}
-
-                <Card.Body className="cardBody" gap="0">
-                  <Card.Title>{folder.name}</Card.Title>
-                  {download && (
-                    <Button
-                      colorPalette="gray"
-                      color="rgb(203, 209, 214)"
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFolderClick(folder, e);
-                      }}
-                      width="100%"
-                      mt="2"
-                      marginBottom="8px"
-                      marginTop="-4px"
-                      className="btnTransferir"
-                    >
-                      Transferir pasta
-                    </Button>
-                  )}
-                </Card.Body>
-              </Card.Root>
-            </div>
-          ))
+                  <Card.Body className="cardBody" gap="0">
+                    <Card.Title>{folder.name}</Card.Title>
+                    {download && (
+                      <Button
+                        colorPalette="gray"
+                        color="rgb(203, 209, 214)"
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFolderClick(folder, e);
+                        }}
+                        width="100%"
+                        mt="2"
+                        marginBottom="8px"
+                        marginTop="-4px"
+                        className="btnTransferir"
+                      >
+                        Transferir pasta
+                      </Button>
+                    )}
+                  </Card.Body>
+                </Card.Root>
+              </div>
+            );
+          })
         )}
       </div>
 
