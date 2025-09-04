@@ -675,7 +675,11 @@ export default function Gallery() {
                   <div
                     style={{
                       position: "relative",
-                      display: "inline-block",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      maxHeight: "70vh",
+                      maxWidth: "90vw",
                     }}
                   >
                     {/* LOW-RES THUMBNAIL */}
@@ -690,6 +694,7 @@ export default function Gallery() {
                         maxWidth: "90vw",
                         objectFit: "contain",
                         borderRadius: "8px",
+                        display: hiResLoaded ? "none" : "block", // hide when hi-res is ready
                       }}
                       alt={images[selectedIndex].name}
                     />
@@ -697,15 +702,14 @@ export default function Gallery() {
                     {/* HIGH-RES IMAGE */}
                     <img
                       key={`hires-${images[selectedIndex].id}`} // <-- key here
-                      src={`${backend_url}/thumbnail/${images[selectedIndex].id}?size=1400`}
+                      src={`${backend_url}/thumbnail/${images[selectedIndex].id}?size=2000`}
                       style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
                         maxHeight: "70vh",
                         maxWidth: "90vw",
                         objectFit: "contain",
                         borderRadius: "8px",
+                        opacity: hiResLoaded ? 1 : 0,
+                        transition: "opacity 0.4s ease-in-out",
                       }}
                       onLoad={() => setHiResLoaded(true)}
                       alt={images[selectedIndex].name}

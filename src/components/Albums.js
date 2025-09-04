@@ -250,6 +250,10 @@ export default function Albums({
     setPasswordError("");
   };
 
+  // Albums.js
+
+  // ... (keep all other code the same)
+
   useEffect(() => {
     if (!rootFolderId) {
       console.error("No rootFolderId provided to Albums component");
@@ -258,63 +262,21 @@ export default function Albums({
     }
 
     const fetchFolders = async () => {
+      setLoading(true); // Ensure loading state is true at the start
       try {
+        // ⭐ 1. Just fetch the data from our optimized endpoint. That's it!
         const res = await fetch(
           `${backend_url}/api/drive/folders/${rootFolderId}`
         );
 
-        const rawResponse = await res.text(); // Read body once
-
         if (!res.ok) {
-          console.error("Failed to fetch folders:", rawResponse);
           throw new Error(`Failed to fetch folders: HTTP ${res.status}`);
         }
 
-        let foldersList;
-        try {
-          foldersList = JSON.parse(rawResponse);
-        } catch (jsonError) {
-          console.error("Failed to parse JSON response:", jsonError);
-          console.error("Raw response:", rawResponse);
-          throw jsonError;
-        }
+        const foldersList = await res.json();
 
-        // ✅ Map each folder to include cover image
-        const foldersWithImages = await Promise.all(
-          foldersList.map(async (folder) => {
-            // 1️⃣ Look for 'cover' subfolder
-            const coverRes = await fetch(
-              `${backend_url}/api/drive/folders/${folder.id}`
-            );
-            const subfolders = await coverRes.json();
-            const coverFolder = subfolders.find(
-              (f) => f.name.toLowerCase() === "cover"
-            );
-
-            let coverImageId = null;
-
-            if (coverFolder) {
-              // 2️⃣ Fetch first image inside 'cover' folder
-              const imagesRes = await fetch(
-                `${backend_url}/api/drive/images/${coverFolder.id}`
-              );
-              const images = await imagesRes.json();
-              if (images?.length) coverImageId = images[0].id;
-            }
-
-            // 3️⃣ If no cover image, fallback to first album image
-            if (!coverImageId && folder.firstImageId) {
-              coverImageId = folder.firstImageId;
-            }
-
-            return {
-              ...folder,
-              coverImageId,
-            };
-          })
-        );
-
-        setFolders(foldersWithImages);
+        // ⭐ 2. Set the state directly. No more looping or extra fetches are needed.
+        setFolders(foldersList);
       } catch (error) {
         console.error("Failed to fetch folders:", error);
       } finally {
@@ -323,7 +285,11 @@ export default function Albums({
     };
 
     fetchFolders();
-  }, [rootFolderId]);
+  }, [rootFolderId, backend_url]); // Added backend_url to dependency array
+
+  // ...
+
+  // ...
 
   const skeletonCount = 8;
 
@@ -356,12 +322,9 @@ export default function Albums({
           </div>
         ) : (
           folders.map((folder) => {
-            const imageUrl =
-              folder.coverImageId || folder.firstImageId
-                ? `${backend_url}/thumbnail/${
-                    folder.coverImageId || folder.firstImageId
-                  }`
-                : "https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png";
+            const imageUrl = folder.coverImageId
+              ? `${backend_url}/thumbnail/${folder.coverImageId}`
+              : "https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png";
 
             return (
               <div
