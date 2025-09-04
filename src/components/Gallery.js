@@ -19,101 +19,79 @@ if (!apiKey) {
 }
 
 // Utility function to add delay between requests
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Request queue to throttle image loading
 class RequestQueue {
   constructor(concurrency = 3) {
     this.concurrency = concurrency;
     this.running = 0;
     this.queue = [];
   }
-
-  async add(fn) {
+  add(fn) {
     return new Promise((resolve, reject) => {
-      this.queue.push({
-        fn,
-        resolve,
-        reject,
-      });
+      this.queue.push({ fn, resolve, reject });
       this.process();
     });
   }
-
-  async process() {
-    if (this.running >= this.concurrency || this.queue.length === 0) {
-      return;
-    }
-
+  process() {
+    if (this.running >= this.concurrency || this.queue.length === 0) return;
     this.running++;
     const { fn, resolve, reject } = this.queue.shift();
-
-    try {
-      const result = await fn();
-      resolve(result);
-    } catch (error) {
-      reject(error);
-    } finally {
-      this.running--;
-      this.process();
-    }
+    fn()
+      .then(resolve)
+      .catch(reject)
+      .finally(() => {
+        this.running--;
+        this.process();
+      });
   }
 }
 
 const imageQueue = new RequestQueue(3); // Limit to 3 concurrent image requests
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Utility function to retry requests with exponential backoff
-const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
-  for (let i = 0; i < maxRetries; i++) {
+const retryWithBackoff = async (fn, retries = 3, baseDelay = 500) => {
+  for (let i = 0; i < retries; i++) {
     try {
       return await fn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-
-      const delayTime = baseDelay * Math.pow(2, i);
-      console.log(`Request failed, retrying in ${delayTime}ms...`);
-      await delay(delayTime);
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await delay(baseDelay * Math.pow(2, i));
     }
   }
 };
 
 // Custom Image Component with error handling and retry logic
-const ImageWithRetry = ({
-  src,
-  alt,
-  style,
-  objectFit,
-  _hover,
-  onError,
-  onLoad,
-  onClick,
-  onErrorCount,
-}) => {
-  const [imageSrc, setImageSrc] = useState(src);
+const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
+  const [imgSrc, setImgSrc] = useState(null); // Start as null, load when allowed
+  const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [loading, setLoading] = useState(true); // <-- new
-  const maxRetries = 2;
 
-  const handleImageError = async () => {
-    console.log(`Image failed to load: ${src}, retry count: ${retryCount}`);
-    if (retryCount < maxRetries) {
-      const delayTime = 2000 * Math.pow(2, retryCount); // 2s, 4s, 8s
-      await new Promise((r) => setTimeout(r, delayTime));
-      setRetryCount((prev) => prev + 1);
-      setImageSrc(`${src}&t=${Date.now()}`);
+  useEffect(() => {
+    let cancelled = false;
+    // Only start loading when queue allows
+    imageQueue.add(() => {
+      if (cancelled) return Promise.resolve();
+      setImgSrc(src);
+      return Promise.resolve();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  const handleError = async () => {
+    if (retryCount < 2) {
+      await delay(1000 * Math.pow(2, retryCount));
+      setRetryCount((r) => r + 1);
+      setImgSrc(`${src}&t=${Date.now()}`);
     } else {
       setHasError(true);
-      if (onErrorCount) onErrorCount();
-      if (onError) onError();
+      onErrorCount?.();
     }
-  };
-
-  const handleImageLoad = () => {
-    setHasError(false);
-    setRetryCount(0);
-    setLoading(false); // <-- hide spinner
-    if (onLoad) onLoad();
   };
 
   if (hasError) {
@@ -121,56 +99,41 @@ const ImageWithRetry = ({
       <Box
         style={style}
         bg="gray.100"
+        borderRadius="8px"
         display="flex"
         alignItems="center"
         justifyContent="center"
-        borderRadius="8px"
-        cursor={onClick ? "pointer" : "default"}
-        onClick={onClick}
       >
-        <div style={{ textAlign: "center", color: "#666", padding: "20px" }}>
-          <div>🖼️</div>
-          <div style={{ fontSize: "12px", marginTop: "8px" }}>
-            Imagem não disponível
-          </div>
+        <div>
+          🖼️
+          <br />
+          Imagem não disponível
         </div>
       </Box>
     );
   }
 
   return (
-    <Box
-      position="relative"
-      style={style}
-      cursor={onClick ? "pointer" : "default"}
-    >
+    <Box position="relative" style={style} backgroundColor="#787276">
       {loading && (
-        <Box
+        <Spinner
+          size="sm"
           position="absolute"
-          top="0"
-          left="0"
-          width="100%"
-          height="100%"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          bg="gray.100"
-          borderRadius="8px"
-        >
-          <Spinner size="md" color="gray.500" />
-        </Box>
+          top="50%"
+          left="50%"
+          transform="translate(-50%, -50%)"
+        />
       )}
-      <Image
-        src={imageSrc}
-        alt={alt}
-        style={{ ...style, display: loading ? "none" : "block" }}
-        objectFit={objectFit}
-        _hover={_hover}
-        onError={handleImageError}
-        onLoad={handleImageLoad}
-        onClick={onClick}
-        onContextMenu={(e) => e.preventDefault()}
-      />
+      {imgSrc && (
+        <Image
+          src={imgSrc}
+          alt={alt}
+          onError={handleError}
+          onLoad={() => setLoading(false)}
+          style={{ ...style, display: loading ? "none" : "block" }}
+          objectFit="cover"
+        />
+      )}
     </Box>
   );
 };
@@ -531,15 +494,6 @@ export default function Gallery() {
               >
                 {loadingMore ? "A carregar..." : "Carregar mais imagens"}
               </button>
-            </div>
-          )}
-
-          {/* No more images message */}
-          {!hasMore && images.length > 0 && !loading && (
-            <div
-              style={{ textAlign: "center", padding: "20px", color: "#666" }}
-            >
-              <p>Todas as imagens foram carregadas</p>
             </div>
           )}
 
