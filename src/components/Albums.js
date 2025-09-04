@@ -264,7 +264,6 @@ export default function Albums({
     const fetchFolders = async () => {
       setLoading(true); // Ensure loading state is true at the start
       try {
-        // ⭐ 1. Just fetch the data from our optimized endpoint. That's it!
         const res = await fetch(
           `${backend_url}/api/drive/folders/${rootFolderId}`
         );
