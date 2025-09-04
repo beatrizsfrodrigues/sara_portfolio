@@ -213,33 +213,32 @@ export default function Albums({
   // Updated handleFolderDownload
   const handleFolderDownload = async (folderId) => {
     if (!folderId) return;
-
     try {
-      // 1️⃣ Get list of files in folder
-      const res = await fetch(`${backend_url}/api/download/${folderId}`);
+      // 1️⃣ Get list of files in the folder
+      const res = await fetch(`${backend_url}/api/folder/${folderId}/files`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      if (!data?.files?.length)
-        throw new Error("Não foram encontrados ficheiros para download");
 
       const zip = new JSZip();
 
-      // 2️⃣ Fetch each file content as blob
+      // 2️⃣ Download each file as blob
       await Promise.all(
         data.files.map(async (file) => {
-          const fileRes = await fetch(`${backend_url}/api/download/${file.id}`);
+          const fileRes = await fetch(
+            `${backend_url}/api/file/${file.id}/download`
+          );
           if (!fileRes.ok) throw new Error(`Falha ao buscar ${file.name}`);
           const blob = await fileRes.blob();
           zip.file(file.name, blob);
         })
       );
 
-      // 3️⃣ Generate ZIP and trigger download
+      // 3️⃣ Save ZIP
       const zipBlob = await zip.generateAsync({ type: "blob" });
       saveAs(zipBlob, `${selectedFolder.name || folderId}.zip`);
     } catch (err) {
       console.error("Error downloading folder:", err);
-      throw err; // Re-throw to be caught in handlePasswordSubmit
+      throw err;
     }
   };
 
