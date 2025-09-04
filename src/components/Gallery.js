@@ -326,55 +326,39 @@ export default function Gallery() {
     setHiResLoaded(false);
   }, [selectedIndex]);
 
-  async function fetchImages() {
+  async function fetchImages(pageToken = "") {
     setLoading(true);
-    setImages([]);
-    setNextPageToken(null);
-    setHasMore(true);
 
     try {
-      const fetchData = async () =>
-        await fetch(`${backend_url}/folder-images/${folderId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}), // no token on first load
-        }).then((res) => {
-          if (!res.ok) throw new Error(`Server error: ${res.status}`);
-          return res.json();
-        });
+      const url = `${backend_url}/api/drive/images/${folderId}${
+        pageToken ? `?pageToken=${pageToken}` : ""
+      }`;
 
-      const data = await retryWithBackoff(fetchData);
-      const files = data.files || [];
+      const res = await retryWithBackoff(() => fetch(url));
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
-      setImages(files);
+      const data = await res.json();
+      setImages((prev) => [...prev, ...(data.files || [])]);
       setNextPageToken(data.nextPageToken || null);
       setHasMore(!!data.nextPageToken);
-
-      console.log(`Loaded ${files.length} images from folder`);
-    } catch (error) {
-      console.error("Erro ao buscar imagens:", error);
-      setImages([]);
-      setHasMore(false);
+    } catch (err) {
+      console.error("Erro ao buscar imagens:", err);
     } finally {
       setLoading(false);
     }
   }
 
   const loadMoreImages = async () => {
-    if (!nextPageToken) return;
+    if (!nextPageToken) return; // nothing to load
     setLoadingMore(true);
 
     try {
-      const res = await fetch(`${backend_url}/folder-images/${folderId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageToken: nextPageToken }),
-      });
-
+      const url = `${backend_url}/api/drive/images/${folderId}?pageToken=${nextPageToken}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
-      setImages((prev) => [...prev, ...data.files]);
+      setImages((prev) => [...prev, ...(data.files || [])]);
       setNextPageToken(data.nextPageToken || null);
       setHasMore(!!data.nextPageToken);
     } catch (err) {
@@ -383,29 +367,6 @@ export default function Gallery() {
       setLoadingMore(false);
     }
   };
-
-  // const loadMoreImages = async () => {
-  //   if (!nextPageToken) return;
-
-  //   try {
-  //     const res = await fetch(
-  //       `https://sara-back-gdf9.onrender.com/folder-images/${folderId}${
-  //         nextPageToken ? `?pageToken=${nextPageToken}` : ""
-  //       }`
-  //     );
-
-  //     if (!res.ok) {
-  //       throw new Error(`Server error: ${res.status}`);
-  //     }
-
-  //     const data = await res.json();
-
-  //     setImages((prev) => [...prev, ...data.files]);
-  //     setNextPageToken(data.nextPageToken || null);
-  //   } catch (err) {
-  //     console.error("Error fetching images:", err);
-  //   }
-  // };
 
   const skeletonCount = 12; // You can adjust this number
 
