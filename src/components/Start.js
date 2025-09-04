@@ -26,8 +26,12 @@ function Start() {
   const navigate = useNavigate();
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const backend_url = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
+    // Wake up server
+    fetch(`${backend_url}/health`).catch(() => {});
+
     async function loadImages() {
       setLoading(true);
       const folderId = process.env.REACT_APP_MASONRY_FOLDER_ID;
