@@ -326,8 +326,10 @@ export default function Gallery() {
     setHiResLoaded(false);
   }, [selectedIndex]);
 
-  async function fetchImages(pageToken = "") {
-    setLoading(true);
+  // Unified fetch function
+  async function fetchImages(pageToken = "", append = false) {
+    if (!pageToken) setLoading(true);
+    else setLoadingMore(true);
 
     try {
       const url = `${backend_url}/api/drive/images/${folderId}${
@@ -338,34 +340,32 @@ export default function Gallery() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
-      setImages((prev) => [...prev, ...(data.files || [])]);
+
+      setImages((prev) =>
+        append ? [...prev, ...(data.files || [])] : [...(data.files || [])]
+      );
+
       setNextPageToken(data.nextPageToken || null);
       setHasMore(!!data.nextPageToken);
     } catch (err) {
       console.error("Erro ao buscar imagens:", err);
     } finally {
-      setLoading(false);
+      if (!pageToken) setLoading(false);
+      else setLoadingMore(false);
     }
   }
 
-  const loadMoreImages = async () => {
-    if (!nextPageToken) return; // nothing to load
-    setLoadingMore(true);
-
-    try {
-      const url = `${backend_url}/api/drive/images/${folderId}?pageToken=${nextPageToken}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-      const data = await res.json();
-      setImages((prev) => [...prev, ...(data.files || [])]);
-      setNextPageToken(data.nextPageToken || null);
-      setHasMore(!!data.nextPageToken);
-    } catch (err) {
-      console.error("Error fetching more images:", err);
-    } finally {
-      setLoadingMore(false);
+  // For initial load
+  useEffect(() => {
+    if (isAuthenticated && !checkingAuth) {
+      fetchImages(); // first load, replace images
     }
+  }, [isAuthenticated, checkingAuth]);
+
+  // For “Load More” button
+  const loadMoreImages = () => {
+    if (!nextPageToken) return;
+    fetchImages(nextPageToken, true); // append images
   };
 
   const skeletonCount = 12; // You can adjust this number
