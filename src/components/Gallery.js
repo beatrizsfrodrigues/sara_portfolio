@@ -71,6 +71,8 @@ const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setHasError(false);
     // Only start loading when queue allows
     imageQueue.add(() => {
       if (cancelled) return Promise.resolve();
@@ -83,7 +85,18 @@ const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
+  // If image is cached, onLoad may not fire. Use a ref to check if loaded.
+  useEffect(() => {
+    if (!imgSrc) return;
+    const img = new window.Image();
+    img.src = imgSrc;
+    if (img.complete) {
+      setLoading(false);
+    }
+  }, [imgSrc]);
+
   const handleError = async () => {
+    setLoading(false);
     if (retryCount < 2) {
       await delay(1000 * Math.pow(2, retryCount));
       setRetryCount((r) => r + 1);
@@ -92,6 +105,10 @@ const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
       setHasError(true);
       onErrorCount?.();
     }
+  };
+
+  const handleLoad = () => {
+    setLoading(false);
   };
 
   if (hasError) {
@@ -129,8 +146,12 @@ const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
           src={imgSrc}
           alt={alt}
           onError={handleError}
-          onLoad={() => setLoading(false)}
-          style={{ ...style, display: loading ? "none" : "block" }}
+          onLoad={handleLoad}
+          style={{
+            ...style,
+            opacity: loading ? 0 : 1,
+            transition: "opacity 0.3s",
+          }}
           objectFit="cover"
           loading="lazy"
         />
@@ -296,9 +317,11 @@ export default function Gallery() {
     else setLoadingMore(true);
 
     try {
-      const url = `${backend_url}/api/drive/images/${folderId}${
-        pageToken ? `?pageToken=${pageToken}` : ""
-      }`;
+      // Directly call Google Drive API for images in the folder
+      let url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'`;
+      url += `&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
+      url += `&orderBy=createdTime&pageSize=20&key=${apiKey}`;
+      if (pageToken) url += `&pageToken=${pageToken}`;
 
       const res = await retryWithBackoff(() => fetch(url));
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -449,14 +472,14 @@ export default function Gallery() {
                       handleImageClick(
                         {
                           ...img,
-                          thumbnailUrl: `${backend_url}/thumbnail/${img.id}?size=400`,
+                          thumbnailUrl: img.thumbnailLink,
                         },
                         idx
                       )
                     }
                   >
                     <ImageWithRetry
-                      src={`${backend_url}/thumbnail/${img.id}?size=400`}
+                      src={img.thumbnailLink || img.webContentLink}
                       alt={img.name}
                       style={{
                         width: "100%",
@@ -507,7 +530,7 @@ export default function Gallery() {
                 left: 0,
                 width: "100vw",
                 height: "100vh",
-                backgroundColor: "rgba(0, 0, 0, 0.8)",
+                backgroundColor: "rgba(0,0,0,0.8)",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -600,37 +623,21 @@ export default function Gallery() {
                   >
                     {/* LOW-RES THUMBNAIL */}
                     <img
-                      key={`thumb-${images[selectedIndex].id}`} // <-- key here
-                      src={
-                        images[selectedIndex].thumbnailUrl ||
-                        `${backend_url}/thumbnail/${images[selectedIndex].id}?size=400`
-                      }
+                      key={`thumb-${images[selectedIndex].id}`}
+                      src={`https://drive.google.com/thumbnail?sz=w640&id=${images[selectedIndex].id}`}
                       style={{
+                        width: "100%",
+                        height: "100%",
                         maxHeight: "70vh",
-                        maxWidth: "90vw",
+                        maxWidth: "70vw",
                         objectFit: "contain",
                         borderRadius: "8px",
-                        display: hiResLoaded ? "none" : "block", // hide when hi-res is ready
+                        display: hiResLoaded ? "none" : "block",
                       }}
                       alt={images[selectedIndex].name}
                     />
 
-                    {/* HIGH-RES IMAGE */}
-                    <img
-                      key={`hires-${images[selectedIndex].id}`} // <-- key here
-                      src={`${backend_url}/thumbnail/${images[selectedIndex].id}?size=2000`}
-                      style={{
-                        maxHeight: "70vh",
-                        maxWidth: "90vw",
-                        objectFit: "contain",
-                        borderRadius: "8px",
-                        opacity: hiResLoaded ? 1 : 0,
-                        transition: "opacity 0.4s ease-in-out",
-                      }}
-                      onLoad={() => setHiResLoaded(true)}
-                      alt={images[selectedIndex].name}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
+                    {/* HIGH-RES IMAGE (use webContentLink for best quality) */}
 
                     {/* Close button */}
                     <button
