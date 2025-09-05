@@ -21,7 +21,7 @@ if (!apiKey) {
 // Utility function to add delay between requests
 
 class RequestQueue {
-  constructor(concurrency = 3) {
+  constructor(concurrency = 2) {
     this.concurrency = concurrency;
     this.running = 0;
     this.queue = [];
@@ -132,6 +132,7 @@ const ImageWithRetry = ({ src, alt, style, onErrorCount }) => {
           onLoad={() => setLoading(false)}
           style={{ ...style, display: loading ? "none" : "block" }}
           objectFit="cover"
+          loading="lazy"
         />
       )}
     </Box>
