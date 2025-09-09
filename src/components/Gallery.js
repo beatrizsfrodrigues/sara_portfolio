@@ -320,7 +320,7 @@ export default function Gallery() {
       // Directly call Google Drive API for images in the folder
       let url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'`;
       url += `&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
-      url += `&orderBy=createdTime&pageSize=20&key=${apiKey}`;
+      url += `&orderBy=createdTime&pageSize=40&key=${apiKey}`;
       if (pageToken) url += `&pageToken=${pageToken}`;
 
       const res = await retryWithBackoff(() => fetch(url));
@@ -477,9 +477,10 @@ export default function Gallery() {
                         idx
                       )
                     }
+                    onContextMenu={(e) => e.preventDefault()}
                   >
                     <ImageWithRetry
-                      src={img.thumbnailLink || img.webContentLink}
+                      src={`https://drive.google.com/thumbnail?sz=w500&id=${img.id}`}
                       alt={img.name}
                       style={{
                         width: "100%",
@@ -493,6 +494,7 @@ export default function Gallery() {
                       }}
                       onClick={() => handleImageClick(img, idx)}
                       onErrorCount={() => setErrorCount((prev) => prev + 1)}
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                     {!isPublicGallery && <p>{img.name}</p>}
                   </Box>
@@ -521,7 +523,6 @@ export default function Gallery() {
             </div>
           )}
 
-          {/* Simple modal overlay for testing */}
           {isOpen && selectedIndex !== null && (
             <div
               style={{
@@ -621,10 +622,9 @@ export default function Gallery() {
                       maxWidth: "90vw",
                     }}
                   >
-                    {/* LOW-RES THUMBNAIL */}
                     <img
                       key={`thumb-${images[selectedIndex].id}`}
-                      src={`https://drive.google.com/thumbnail?sz=w640&id=${images[selectedIndex].id}`}
+                      src={`https://drive.google.com/thumbnail?sz=w1000&id=${images[selectedIndex].id}`}
                       style={{
                         width: "100%",
                         height: "100%",
@@ -635,9 +635,8 @@ export default function Gallery() {
                         display: hiResLoaded ? "none" : "block",
                       }}
                       alt={images[selectedIndex].name}
+                      onContextMenu={(e) => e.preventDefault()}
                     />
-
-                    {/* HIGH-RES IMAGE (use webContentLink for best quality) */}
 
                     {/* Close button */}
                     <button
@@ -667,53 +666,6 @@ export default function Gallery() {
               </div>
             </div>
           )}
-
-          {/* Dialog for enlarged image */}
-          <Dialog.Root
-            open={false}
-            onOpenChange={(details) => {
-              console.log("Dialog onOpenChange:", details);
-              if (!details.open) {
-                onClose();
-              }
-            }}
-            size="full"
-          >
-            <Dialog.Backdrop bg="blackAlpha.800" />
-            <Dialog.Positioner>
-              <Dialog.Content
-                bg="transparent"
-                boxShadow="none"
-                width="100vw"
-                height="100vh"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Dialog.CloseTrigger
-                  color="white"
-                  bg="blackAlpha.600"
-                  _hover={{ bg: "blackAlpha.800" }}
-                  size="lg"
-                  position="absolute"
-                  top="4"
-                  right="4"
-                  zIndex={2}
-                />
-                <Dialog.Body p={0}>
-                  {selectedIndex !== null && images[selectedIndex] && (
-                    <Image
-                      src={`https://drive.google.com/thumbnail?sz=w1920&id=${images[selectedIndex].id}`}
-                      alt={images[selectedIndex].name}
-                      width="100vw"
-                      objectFit="contain"
-                      borderRadius="8px"
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                  )}
-                </Dialog.Body>
-              </Dialog.Content>
-            </Dialog.Positioner>
-          </Dialog.Root>
         </>
       )}
     </div>

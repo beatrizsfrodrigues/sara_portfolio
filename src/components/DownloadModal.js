@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Dialog } from "@chakra-ui/react";
+import { Button, Dialog, Spinner } from "@chakra-ui/react";
 
 export default function DownloadModal({
   isOpen,
@@ -26,7 +26,8 @@ export default function DownloadModal({
     <Dialog.Root
       open={isOpen}
       onOpenChange={(details) => {
-        if (!details.open && showButtons) {
+        // Only allow closing if not loading
+        if (!details.open && type !== "loading") {
           onClose();
         }
       }}
@@ -48,32 +49,19 @@ export default function DownloadModal({
           </Dialog.Header>
 
           <Dialog.Body>
-            <div style={{ marginBottom: showButtons ? "20px" : "0" }}>
+            <div style={{ marginBottom: "20px" }}>
               <p
                 style={{
                   color: "#666",
                   fontSize: "14px",
                   lineHeight: "1.5",
                   whiteSpace: "pre-line",
+                  textAlign: "center",
                 }}
               >
                 {message}
               </p>
             </div>
-
-            {showButtons && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <Button colorPalette="blue" variant="solid" onClick={onClose}>
-                  OK
-                </Button>
-              </div>
-            )}
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Positioner>

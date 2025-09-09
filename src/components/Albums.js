@@ -321,7 +321,7 @@ export default function Albums({
         ) : (
           folders.map((folder) => {
             const imageUrl = folder.coverImageId
-              ? `${backend_url}/thumbnail/${folder.coverImageId}`
+              ? `https://drive.google.com/thumbnail?sz=w640&id=${folder.coverImageId}`
               : "https://cdn.pixabay.com/photo/2021/02/26/16/29/error-404-6052476_1280.png";
 
             return (
@@ -345,6 +345,7 @@ export default function Albums({
                     src={imageUrl}
                     alt={`Capa do álbum ${folder.name}`}
                     height="100%"
+                    onContextMenu={(e) => e.preventDefault()}
                   />
                   <Card.Body className="cardBody" gap="0">
                     <Card.Title>{folder.name}</Card.Title>
