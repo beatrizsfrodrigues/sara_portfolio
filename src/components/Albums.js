@@ -219,6 +219,18 @@ export default function Albums({
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
 
+      // Prefer an existing zip in the Drive folder to avoid re-downloading every image
+      if (data.zipFile) {
+        const zipRes = await fetch(
+          `${backend_url}/api/file/${data.zipFile.id}/download`
+        );
+        if (!zipRes.ok)
+          throw new Error(`Falha ao baixar ${data.zipFile.name || "zip"}`);
+        const zipBlob = await zipRes.blob();
+        saveAs(zipBlob, data.zipFile.name || `${selectedFolder?.name || folderId}.zip`);
+        return;
+      }
+
       const zip = new JSZip();
 
       // 2️⃣ Download each file as blob
@@ -235,7 +247,7 @@ export default function Albums({
 
       // 3️⃣ Save ZIP
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, `${selectedFolder.name || folderId}.zip`);
+      saveAs(zipBlob, `${selectedFolder?.name || folderId}.zip`);
     } catch (err) {
       console.error("Error downloading folder:", err);
       throw err;
