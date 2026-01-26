@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Card, Skeleton, Box } from "@chakra-ui/react";
-import JSZip from "jszip";
 import PasswordModal from "./PasswordModal";
 import DownloadModal from "./DownloadModal";
 import ImageWithRetry from "./ImageWithRetry";
-
-import { saveAs } from "file-saver";
 
 export default function Albums({
   rootFolderId,
@@ -199,44 +196,18 @@ export default function Albums({
     }
   };
 
-  // Updated handleFolderDownload
+  // Updated handleFolderDownload - triggers browser download with progress
   const handleFolderDownload = async (folderId) => {
     if (!folderId) return;
     try {
-      // 1️⃣ Get list of files in the folder
-      const res = await fetch(`${backend_url}/api/folder/${folderId}/files`);
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-
-      // Prefer an existing zip in the Drive folder to avoid re-downloading every image
-      if (data.zipFile) {
-        const zipRes = await fetch(
-          `${backend_url}/api/file/${data.zipFile.id}/download`
-        );
-        if (!zipRes.ok)
-          throw new Error(`Falha ao baixar ${data.zipFile.name || "zip"}`);
-        const zipBlob = await zipRes.blob();
-        saveAs(zipBlob, data.zipFile.name || `${selectedFolder?.name || folderId}.zip`);
-        return;
-      }
-
-      const zip = new JSZip();
-
-      // 2️⃣ Download each file as blob
-      await Promise.all(
-        data.files.map(async (file) => {
-          const fileRes = await fetch(
-            `${backend_url}/api/file/${file.id}/download`
-          );
-          if (!fileRes.ok) throw new Error(`Falha ao buscar ${file.name}`);
-          const blob = await fileRes.blob();
-          zip.file(file.name, blob);
-        })
-      );
-
-      // 3️⃣ Save ZIP
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, `${selectedFolder?.name || folderId}.zip`);
+      // Create a temporary link and trigger native browser download
+      const downloadUrl = `${backend_url}/api/download-folder/${folderId}`;
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${selectedFolder?.name || folderId}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("Error downloading folder:", err);
       throw err;
