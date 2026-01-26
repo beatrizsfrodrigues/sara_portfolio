@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Dialog, Spinner } from "@chakra-ui/react";
+import { Dialog } from "@chakra-ui/react";
 
 export default function DownloadModal({
   isOpen,
@@ -7,7 +7,6 @@ export default function DownloadModal({
   title,
   message,
   type = "info", // "info", "loading", "success", "error"
-  showButtons = true,
 }) {
   const getColor = () => {
     switch (type) {

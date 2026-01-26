@@ -56,7 +56,7 @@ function Start() {
       setLoading(false);
     }
     loadImages();
-  }, []);
+  }, [backend_url]);
 
   return (
     <div className="homeViewport">

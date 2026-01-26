@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Image, Skeleton, Box } from "@chakra-ui/react";
+import { Button, Card, Skeleton, Box } from "@chakra-ui/react";
 import JSZip from "jszip";
 import PasswordModal from "./PasswordModal";
 import DownloadModal from "./DownloadModal";
@@ -24,23 +24,15 @@ export default function Albums({
   const [downloadModalTitle, setDownloadModalTitle] = useState("");
   const [downloadModalMessage, setDownloadModalMessage] = useState("");
   const [downloadModalType, setDownloadModalType] = useState("info");
-  const [showDownloadModalButtons, setShowDownloadModalButtons] =
-    useState(true);
 
   const navigate = useNavigate();
 
   const backend_url = process.env.REACT_APP_BACKEND_URL;
 
-  const showDownloadModal = (
-    title,
-    message,
-    type = "info",
-    showButtons = true
-  ) => {
+  const showDownloadModal = (title, message, type = "info") => {
     setDownloadModalTitle(title);
     setDownloadModalMessage(message);
     setDownloadModalType(type);
-    setShowDownloadModalButtons(showButtons);
     setIsDownloadModalOpen(true);
   };
 
@@ -161,8 +153,7 @@ export default function Albums({
           showDownloadModal(
             "A baixar pasta...",
             "Por favor, aguarde...",
-            "info", // info type
-            true // allow closing
+            "info" // info type
           );
 
           try {
@@ -170,16 +161,14 @@ export default function Albums({
             showDownloadModal(
               "Sucesso!",
               "A pasta foi baixada com sucesso.",
-              "success",
-              true // allow closing after success
+              "success"
             );
           } catch (err) {
             console.error(err);
             showDownloadModal(
               "Erro!",
               "Falha ao baixar a pasta: " + err.message,
-              "error",
-              true // allow closing after error
+              "error"
             );
           }
         } else {
@@ -404,7 +393,6 @@ export default function Albums({
         title={downloadModalTitle}
         message={downloadModalMessage}
         type={downloadModalType}
-        showButtons={showDownloadModalButtons}
       />
 
       {checkingPassword && (

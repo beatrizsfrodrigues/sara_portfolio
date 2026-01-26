@@ -1,18 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import {
-  Button,
-  Image,
-  Skeleton,
-  Box,
-  Dialog,
-  Spinner,
-} from "@chakra-ui/react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button, Image, Skeleton, Box, Spinner } from "@chakra-ui/react";
 import { IoChevronBackOutline } from "react-icons/io5";
 
 const apiKey = process.env.REACT_APP_API_KEY;
-
-const backend_url = process.env.REACT_APP_BACKEND_URL;
 
 if (!apiKey) {
   console.error("Missing required environment variable: REACT_APP_API_KEY");
@@ -168,11 +159,42 @@ export default function Gallery() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null); // index of selected image
   const [isOpen, setIsOpen] = useState(false);
-  const [modalImageLoading, setModalImageLoading] = useState(true);
   const [nextPageToken, setNextPageToken] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
   const [hiResLoaded, setHiResLoaded] = useState(false);
+
+  const fetchImages = useCallback(
+    async (pageToken = "", append = false) => {
+      if (!pageToken) setLoading(true);
+      else setLoadingMore(true);
+
+      try {
+        let url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'`;
+        url += `&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
+        url += `&orderBy=createdTime&pageSize=40&key=${apiKey}`;
+        if (pageToken) url += `&pageToken=${pageToken}`;
+
+        const res = await retryWithBackoff(() => fetch(url));
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        const data = await res.json();
+
+        setImages((prev) =>
+          append ? [...prev, ...(data.files || [])] : [...(data.files || [])]
+        );
+
+        setNextPageToken(data.nextPageToken || null);
+        setHasMore(!!data.nextPageToken);
+      } catch (err) {
+        console.error("Erro ao buscar imagens:", err);
+      } finally {
+        if (!pageToken) setLoading(false);
+        else setLoadingMore(false);
+      }
+    },
+    [folderId]
+  );
 
   // Authentication states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -189,30 +211,26 @@ export default function Gallery() {
     if (isOpen) return;
     setSelectedIndex(idx);
     setIsOpen(true);
-    setModalImageLoading(true);
   };
 
   const onClose = () => {
     setIsOpen(false);
     setSelectedIndex(null);
-    setModalImageLoading(true);
   };
 
   const showPrev = () => {
     if (selectedIndex > 0) {
       setSelectedIndex(selectedIndex - 1);
-      setModalImageLoading(true);
     }
   };
   const showNext = () => {
     if (selectedIndex < images.length - 1) {
       setSelectedIndex(selectedIndex + 1);
-      setModalImageLoading(true);
     }
   };
 
   // Function to check if folder has password.txt file
-  const checkPasswordProtection = async () => {
+  const checkPasswordProtection = useCallback(async () => {
     try {
       const res = await fetch(
         `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+name='password.txt'&key=${apiKey}`
@@ -228,10 +246,10 @@ export default function Gallery() {
       console.error("Error checking password protection:", error);
       return false;
     }
-  };
+  }, [folderId]);
 
   // Function to validate authentication using sessionStorage
-  const validateAuthToken = async () => {
+  const validateAuthToken = useCallback(async () => {
     setCheckingAuth(true);
 
     // Check sessionStorage for authentication
@@ -292,62 +310,24 @@ export default function Gallery() {
     }
 
     setCheckingAuth(false);
-  };
+  }, [checkPasswordProtection, folderId]);
 
   useEffect(() => {
     // First validate authentication, then fetch images
     validateAuthToken();
-  }, [folderId]);
+  }, [validateAuthToken]);
 
   useEffect(() => {
     // Only fetch images if authenticated
     if (isAuthenticated && !checkingAuth) {
       fetchImages();
     }
-  }, [isAuthenticated, checkingAuth]);
+  }, [fetchImages, isAuthenticated, checkingAuth]);
 
   useEffect(() => {
     // Whenever selectedIndex changes, reset hi-res loading
     setHiResLoaded(false);
   }, [selectedIndex]);
-
-  // Unified fetch function
-  async function fetchImages(pageToken = "", append = false) {
-    if (!pageToken) setLoading(true);
-    else setLoadingMore(true);
-
-    try {
-      // Directly call Google Drive API for images in the folder
-      let url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType+contains+'image/'`;
-      url += `&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
-      url += `&orderBy=createdTime&pageSize=40&key=${apiKey}`;
-      if (pageToken) url += `&pageToken=${pageToken}`;
-
-      const res = await retryWithBackoff(() => fetch(url));
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-      const data = await res.json();
-
-      setImages((prev) =>
-        append ? [...prev, ...(data.files || [])] : [...(data.files || [])]
-      );
-
-      setNextPageToken(data.nextPageToken || null);
-      setHasMore(!!data.nextPageToken);
-    } catch (err) {
-      console.error("Erro ao buscar imagens:", err);
-    } finally {
-      if (!pageToken) setLoading(false);
-      else setLoadingMore(false);
-    }
-  }
-
-  // For initial load
-  useEffect(() => {
-    if (isAuthenticated && !checkingAuth) {
-      fetchImages(); // first load, replace images
-    }
-  }, [isAuthenticated, checkingAuth]);
 
   // For “Load More” button
   const loadMoreImages = () => {

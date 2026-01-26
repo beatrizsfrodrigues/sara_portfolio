@@ -7,7 +7,6 @@ import Sessions from "./components/Sessions";
 import Nav from "./components/Nav";
 import Start from "./components/Start";
 import About from "./components/About";
-import Contacts from "./components/Contacts.js";
 import Portfolio from "./components/Portfolio.js";
 import Orders from "./components/Orders.js";
 import { Provider } from "./components/ui/provider.jsx";

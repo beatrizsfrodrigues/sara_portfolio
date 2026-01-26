@@ -5,7 +5,6 @@ export default function Home() {
     "https://drive.google.com/uc?export=view&id=1a6_3a5_K7io2ohmIHQo0U3BzP7Rvh73T";
   const localCover = "/photos/cover.jpg";
   const [imgSrc, setImgSrc] = useState(localCover);
-  const [driveLoaded, setDriveLoaded] = useState(false);
 
   useEffect(() => {
     // Try to load the drive image in the background
@@ -13,7 +12,6 @@ export default function Home() {
     img.src = driveCover;
     img.onload = () => {
       setImgSrc(driveCover);
-      setDriveLoaded(true);
     };
     // If drive image fails, do nothing (keep local)
   }, []);
@@ -21,7 +19,7 @@ export default function Home() {
   return (
     <div className="homeViewport">
       <div id="coverDiv">
-        <img src={imgSrc} alt="image" id="coverImg" />
+        <img src={imgSrc} alt="Sara Ferreira" id="coverImg" />
         <p>SARA FERREIRA</p>
       </div>
     </div>

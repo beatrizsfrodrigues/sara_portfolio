@@ -2,20 +2,16 @@ import {
   Box,
   Flex,
   Text,
-  IconButton,
-  Button,
   Stack,
   Icon,
   PopoverRoot,
   PopoverTrigger,
   PopoverContent,
-  useBreakpointValue,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { HiMenu, HiX, HiChevronDown, HiChevronRight } from "react-icons/hi";
 import { FaInstagram } from "react-icons/fa";
-import { useParams, Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function WithSubnavigation() {
   const navigate = useNavigate();

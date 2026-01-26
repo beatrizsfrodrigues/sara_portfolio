@@ -1,14 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  Text,
-  Button,
-  Card,
-  Image,
-  Skeleton,
-  Box,
-  Flex,
-} from "@chakra-ui/react";
+import React from "react";
+import { Flex, Image } from "@chakra-ui/react";
 import { FaInstagram } from "react-icons/fa";
 import { MdOutlineEmail } from "react-icons/md";
 import { FiPhone } from "react-icons/fi";
